@@ -7,15 +7,9 @@ import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { RoleProtectedRoute } from '@/components/auth/RoleProtectedRoute';
 import { Layout } from '@/components/layout/Layout';
 import Login from '@/pages/Login';
-<<<<<<< HEAD
 import Processing from '@/pages/Processing';
 import Forecast from '@/pages/Forecast';
 import Bonuses from '@/pages/Bonuses';
-=======
-import TimeEntries from '@/pages/TimeEntries';
-import Leave from '@/pages/Leave';
-import Reports from '@/pages/Reports';
->>>>>>> 24f29c2e344e093b64de73e291d51fbf16e965f9
 import Projects from '@/pages/Projects';
 import Clients from '@/pages/Clients';
 import Users from '@/pages/Users';
@@ -69,7 +63,6 @@ export default function App() {
             }
           >
             <Route
-<<<<<<< HEAD
               path="bonuses"
               element={
                 <RoleProtectedRoute allowedRoles={['admin']}>
@@ -90,12 +83,6 @@ export default function App() {
               element={
                 <RoleProtectedRoute allowedRoles={['admin']}>
                   <Forecast />
-=======
-              path="reports"
-              element={
-                <RoleProtectedRoute allowedRoles={['admin']}>
-                  <Reports />
->>>>>>> 24f29c2e344e093b64de73e291d51fbf16e965f9
                 </RoleProtectedRoute>
               }
             />

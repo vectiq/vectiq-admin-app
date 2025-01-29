@@ -1,10 +1,6 @@
 {
     "hosting": {
-<<<<<<< HEAD
       "site": "vectiq-admin-app",
-=======
-      "site": "vectiq-timesheet",
->>>>>>> 24f29c2e344e093b64de73e291d51fbf16e965f9
       "public": "dist",
       "ignore": [
         "firebase.json",
