@@ -15,6 +15,7 @@ import Clients from '@/pages/Clients';
 import Users from '@/pages/Users';
 import Teams from '@/pages/Teams';
 import Admin from '@/pages/Admin';
+import Reports from './pages/Reports';
 
 const queryClient = new QueryClient()
 
@@ -62,6 +63,14 @@ export default function App() {
               </ProtectedRoute>
             }
           >
+            <Route
+              path="reports"
+              element={
+                <RoleProtectedRoute allowedRoles={['admin']}>
+                  <Reports />
+                </RoleProtectedRoute>
+              }
+            />
             <Route
               path="bonuses"
               element={
