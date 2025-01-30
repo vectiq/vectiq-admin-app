@@ -3,6 +3,7 @@ import {
   doc,
   getDoc,
   deleteDoc,
+  updateDoc,
   getDocs,
   setDoc,
   query,
@@ -53,6 +54,8 @@ export async function saveForecast(
 
 export async function updateForecast(
   id: string,
+  month: string,
+  name: string,
   entries: SavedForecast['entries']
 ): Promise<SavedForecast> {
   const forecastRef = doc(db, COLLECTION, id);
@@ -63,17 +66,19 @@ export async function updateForecast(
   }
   
   const existingData = docSnap.data() as SavedForecast;
-  
   const forecast: SavedForecast = {
     id,
-    name: existingData.name,
-    month: existingData.month,
+    name,
+    month: month,
     entries,
-    createdAt: existingData.createdAt,
+    createdAt: docSnap.exists() ? docSnap.data().createdAt : new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
 
-  await setDoc(forecastRef, forecast);
+  await setDoc(forecastRef, {
+    ...forecast,
+    entries: entries
+  }, { merge: true });
   return forecast;
 }
 

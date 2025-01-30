@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
-import { getSavedForecasts, saveForecast, deleteForecast } from '@/lib/services/forecasts';
+import { useCallback, useEffect } from 'react';
+import { getSavedForecasts, saveForecast, updateForecast, deleteForecast } from '@/lib/services/forecasts';
 import type { SavedForecast } from '@/types';
 
 const QUERY_KEY = 'forecasts';
@@ -12,10 +12,24 @@ interface UseForecastsOptions {
 export function useForecasts({ month }: UseForecastsOptions) {
   const queryClient = useQueryClient();
 
+  // Function to create default forecast
+  const createDefaultForecast = useCallback(async (entries: SavedForecast['entries']) => {
+    const defaultName = `Default - ${month.substring(5, 7)}/${month.substring(0, 4)}`;
+    
+    // Check if default forecast already exists
+    const existingForecasts = await getSavedForecasts(month);
+    const defaultForecast = existingForecasts.find(f => f.name === defaultName);
+    if (defaultForecast) {
+      return defaultForecast;
+    }
+
+    return saveForecast(defaultName, month, entries);
+  }, [month]);
+
   // Query for saved forecasts
   const query = useQuery({
     queryKey: [QUERY_KEY, month],
-    queryFn: () => getSavedForecasts(month)
+    queryFn: () => getSavedForecasts(month),
   });
 
   // Mutation for saving forecasts
@@ -32,14 +46,13 @@ export function useForecasts({ month }: UseForecastsOptions) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, entries }: {
+    mutationFn: async (args: {
       id: string;
+      month: string;
+      name: string;
       entries: SavedForecast['entries'];
     }) => {
-      const forecast = query.data?.find(f => f.id === id);
-      if (!forecast) throw new Error('Forecast not found');
-      
-      return updateForecast(id, month, forecast.name, entries);
+      return updateForecast(args.id, args.month, args.name, args.entries);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, month] });
@@ -57,13 +70,14 @@ export function useForecasts({ month }: UseForecastsOptions) {
     return saveMutation.mutateAsync({ name, entries });
   }, [saveMutation]);
 
-  const handleUpdateForecast = useCallback(async (id: string, entries: SavedForecast['entries']) => {
-    return updateMutation.mutateAsync({ id, entries });
+  const handleUpdateForecast = useCallback(async (id: string, month: string, name: string, entries: SavedForecast['entries']) => {
+    return updateMutation.mutateAsync({ id, month, name, entries });
   }, [updateMutation]);
 
   return {
     forecasts: query.data || [],
     isLoading: query.isLoading,
+    createDefaultForecast,
     error: query.error,
     saveForecast: handleSaveForecast,
     updateForecast: handleUpdateForecast,

@@ -53,22 +53,24 @@ export function UserForecastTable({
 
   // Initialize local data from selected forecast
   useEffect(() => {
-    if (selectedForecast) {
-      const newLocalData = {};
+    const newLocalData = {};
+
+    if (selectedForecast && Array.isArray(selectedForecast.entries)) {
+      // Initialize from selected forecast entries
       selectedForecast.entries.forEach(entry => {
-        newLocalData[entry.userId] = {
-          hoursPerWeek: entry.hoursPerWeek,
-          billablePercentage: entry.billablePercentage,
-          sellRate: entry.sellRate,
-          costRate: entry.costRate,
-          plannedBonus: entry.plannedBonus,
-          forecastHours: entry.forecastHours
-        };
+        if (entry && entry.userId) {
+          newLocalData[entry.userId] = {
+            hoursPerWeek: entry.hoursPerWeek,
+            billablePercentage: entry.billablePercentage,
+            sellRate: entry.sellRate,
+            costRate: entry.costRate,
+            plannedBonus: entry.plannedBonus,
+            forecastHours: entry.forecastHours
+          };
+        }
       });
-      setLocalData(newLocalData);
     } else {
       // Initialize with default values from user data
-      const newLocalData = {};
       users.forEach(user => {
         const averageSellRate = getAverageSellRate(projects, user.id, month + '-01');
         const totalBonuses = getUserBonuses(user.id);
@@ -83,9 +85,10 @@ export function UserForecastTable({
           forecastHours: (user.hoursPerWeek || 40) * (workingDays / 5)
         };
       });
-      setLocalData(newLocalData);
     }
-  }, [selectedForecast, users, month, workingDays, getAverageSellRate, getUserBonuses]);
+    
+    setLocalData(newLocalData);
+  }, [selectedForecast, users, month, workingDays, projects, getUserBonuses]);
 
   const handleCellChange = (userId: string, field: string, value: number) => {
     const newData = {
@@ -154,18 +157,18 @@ export function UserForecastTable({
           <TableHeader>
             <tr>
               <Th>User</Th>
-              <Th className="text-right">Hours/Week</Th>
-              <Th className="text-right">Billable %</Th>
-              <Th className="text-right">Sell Rate</Th>
-              <Th className="text-right">Cost Rate</Th>
+              <Th className="text-center">Hours/Week</Th>
+              <Th className="text-center">Billable %</Th>
+              <Th className="text-center">Sell Rate</Th>
+              <Th className="text-center">Cost Rate</Th>
               {isEmployee && (
                 <>
-                  <Th className="text-right">Public Holidays</Th>
-                  <Th className="text-right">Planned Leave</Th>
-                  <Th className="text-right">Bonus</Th>
+                  <Th className="text-center">Public Holidays</Th>
+                  <Th className="text-center">Planned Leave</Th>
+                  <Th className="text-center">Bonus</Th>
                 </>
               )}
-              <Th className="text-right">Forecast Hours</Th>
+              <Th className="text-center">Forecast Hours</Th>
             </tr>
           </TableHeader>
           <TableBody>
@@ -184,6 +187,7 @@ export function UserForecastTable({
                   <Td className="font-medium">{user.name}</Td>
                   <Td className="text-right p-0">
                     <EditableTimeCell
+                      className="text-center"
                       value={userData.hoursPerWeek}
                       onChange={(value) => handleCellChange(user.id, 'hoursPerWeek', value)}
                       isEditing={editingCell === `${user.id}-hoursPerWeek`}
@@ -194,6 +198,7 @@ export function UserForecastTable({
                   </Td>
                   <Td className="text-right p-0">
                     <EditableTimeCell
+                      className="text-center"
                       value={userData.billablePercentage}
                       onChange={(value) => handleCellChange(user.id, 'billablePercentage', value)}
                       isEditing={editingCell === `${user.id}-billable`}
@@ -204,6 +209,7 @@ export function UserForecastTable({
                   </Td>
                   <Td className="text-right p-0">
                     <EditableTimeCell
+                      className="text-center"
                       value={userData.sellRate}
                       onChange={(value) => handleCellChange(user.id, 'sellRate', value)}
                       isEditing={editingCell === `${user.id}-sellRate`}
@@ -214,6 +220,7 @@ export function UserForecastTable({
                   </Td>
                   <Td className="text-right p-0">
                     <EditableTimeCell
+                      className="text-center"
                       value={userData.costRate}
                       onChange={(value) => handleCellChange(user.id, 'costRate', value)}
                       isEditing={editingCell === `${user.id}-costRate`}
@@ -224,12 +231,12 @@ export function UserForecastTable({
                   </Td>
                   {isEmployee && (
                     <>
-                      <Td className="text-right">
+                      <Td className="text-center">
                         <Badge variant="secondary">
                           {(holidays.length * 8).toFixed(1)} hrs
                         </Badge>
                       </Td>
-                      <Td className="text-right">
+                      <Td className="text-center">
                         {(() => {
                           if (!leaveData?.leave) return <Badge variant="secondary">No Data</Badge>;
 
@@ -253,6 +260,7 @@ export function UserForecastTable({
                       </Td>
                       <Td className="text-right p-0">
                         <EditableTimeCell
+                          className="text-center"
                           value={userData.plannedBonus}
                           onChange={(value) => handleCellChange(user.id, 'plannedBonus', value)}
                           isEditing={editingCell === `${user.id}-bonus`}
@@ -265,6 +273,7 @@ export function UserForecastTable({
                   )}
                   <Td className="text-right p-0">
                     <EditableTimeCell
+                      className="text-center"
                       value={userData.forecastHours}
                       onChange={(value) => handleCellChange(user.id, 'forecastHours', value)}
                       isEditing={editingCell === `${user.id}-forecast`}

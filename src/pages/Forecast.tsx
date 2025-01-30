@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { format, addMonths, subMonths, startOfMonth, addYears, subYears } from 'date-fns';
 import { useUsers } from '@/lib/hooks/useUsers';
 import { useProjects } from '@/lib/hooks/useProjects';
@@ -39,12 +39,15 @@ export default function Forecast() {
   const [currentDate, setCurrentDate] = useState(startOfMonth(new Date()));
   const [selectedForecastId, setSelectedForecastId] = useState<string>('');
   const [isNewForecastDialogOpen, setIsNewForecastDialogOpen] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; forecastId: string | null }>({
     isOpen: false,
     forecastId: null
   });
+  const [forecasts, setForecasts] = useState([]);
   const currentMonth = format(currentDate, 'yyyy-MM');
   const workingDays = getWorkingDaysForMonth(currentMonth);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Get financial year dates
   const financialYearStart = useMemo(() => {
@@ -68,6 +71,7 @@ export default function Forecast() {
   const { 
     forecasts: savedForecasts, 
     saveForecast, 
+    createDefaultForecast,
     updateForecast,
     deleteForecast,
     isSaving,
@@ -75,6 +79,61 @@ export default function Forecast() {
     isLoading: isLoadingForecasts 
   } = useForecasts({ month: currentMonth });
 
+  // Create default forecast if none exists
+  useEffect(() => {
+    const initializeDefaultForecast = async () => {
+      if (!isLoadingForecasts && !isLoadingUsers && !isLoadingProjects && savedForecasts.length === 0 && !isInitialized) {
+        setIsInitialized(true);
+        const defaultEntries = users.map(user => {
+          const averageSellRate = getAverageSellRate(projects, user.id, currentMonth + '-01');
+          const totalBonuses = bonuses
+            .filter(bonus => bonus.employeeId === user.id)
+            .reduce((sum, bonus) => sum + bonus.amount, 0);
+          const costRate = getCostRateForMonth(user.costRate || [], currentMonth);
+          const plannedLeave = leaveData?.leave
+            ?.filter(leave => leave.employeeId === user.xeroEmployeeId && leave.status === 'SCHEDULED')
+            ?.reduce((sum, leave) => sum + leave.numberOfUnits, 0) || 0;
+
+          return {
+            userId: user.id,
+            hoursPerWeek: user.hoursPerWeek || 40,
+            billablePercentage: user.estimatedBillablePercentage || 0,
+            forecastHours: (user.hoursPerWeek || 40) * (workingDays / 5),
+            sellRate: averageSellRate,
+            costRate: costRate,
+            plannedBonus: totalBonuses,
+            plannedLeave: plannedLeave,
+            publicHolidays: holidays.length * 8
+          };
+        });
+
+        const defaultForecast = await createDefaultForecast(defaultEntries);
+        if (defaultForecast) {
+          setSelectedForecastId(defaultForecast.id);
+          setForecasts(defaultForecast.entries);
+        }
+      }
+    };
+
+    initializeDefaultForecast();
+  }, [currentMonth, isLoadingForecasts, isLoadingUsers, isLoadingProjects, savedForecasts.length, isInitialized]);
+
+  // Reset initialization flag when month changes
+  useEffect(() => {
+    setIsInitialized(false);
+  }, [currentMonth]);
+
+  // Auto-select default forecast when available
+  useEffect(() => {
+    if (!selectedForecastId && savedForecasts.length > 0) {
+      const defaultForecast = savedForecasts.find(f => f.name.startsWith('Default -'));
+      if (defaultForecast) {
+        setSelectedForecastId(defaultForecast.id);
+        setForecasts(defaultForecast.entries);
+        setHasUnsavedChanges(false);
+      }
+    }
+  }, [savedForecasts, selectedForecastId]);
   // Filter for active projects only
   const projects = useMemo(() => {
     return allProjects.filter(project => {
@@ -120,28 +179,11 @@ export default function Forecast() {
 
   const handleSaveCurrentForecast = async () => {
     if (!selectedForecastId) return;
-    
+    setHasUnsavedChanges(false);
     const currentForecast = savedForecasts.find(f => f.id === selectedForecastId);
-    if (!currentForecast) return;
-
-    const forecastEntries = users.map(user => {
-      const averageSellRate = getAverageSellRate(projects, user.id, currentMonth + '-01');
-      const costRate = getCostRateForMonth(user.costRate || [], currentMonth);
-
-      return {
-        userId: user.id,
-        hoursPerWeek: user.hoursPerWeek || 40,
-        billablePercentage: user.estimatedBillablePercentage || 0,
-        forecastHours: (user.hoursPerWeek || 40) * (workingDays / 5),
-        sellRate: averageSellRate,
-        costRate: costRate,
-        plannedBonus: 0,
-        plannedLeave: 0,
-        publicHolidays: holidays.length * 8
-      };
-    });
-
-    await updateForecast(selectedForecastId, forecastEntries);
+    if (currentForecast) {
+      await updateForecast(selectedForecastId, currentMonth, currentForecast.name, forecasts);
+    }
   };
 
   const handleDeleteForecast = async () => {
@@ -178,8 +220,6 @@ export default function Forecast() {
   if (isLoadingUsers || isLoadingProjects || isLoadingForecasts) {
     return <LoadingScreen />;
   }
-
-  const forecasts = [];
 
   return (
     <div className="space-y-6">
@@ -234,12 +274,15 @@ export default function Forecast() {
           <Button
             variant="secondary"
             size="sm"
-            disabled={!selectedForecastId}
+            disabled={!selectedForecastId || !hasUnsavedChanges}
             className="p-1.5"
             title="Save Current Forecast"
             onClick={handleSaveCurrentForecast}
           >
             <Save className="h-4 w-4" />
+            {hasUnsavedChanges && (
+              <span className="absolute -top-1 -right-1 h-2 w-2 bg-amber-500 rounded-full" />
+            )}
           </Button>
 
           {selectedForecastId && (
@@ -287,7 +330,8 @@ export default function Forecast() {
           selectedForecast={savedForecasts.find(f => f.id === selectedForecastId)}
           onForecastChange={(entries) => {
             if (selectedForecastId) {
-              updateForecast(selectedForecastId, entries);
+              setForecasts(entries);
+              setHasUnsavedChanges(true);
             }
           }}
           month={currentMonth}

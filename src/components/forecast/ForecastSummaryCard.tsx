@@ -30,52 +30,21 @@ export function ForecastSummaryCard({
     let totalCost = 0;
     let totalBonuses = 0;
 
-    // Calculate total bonuses for the month
-    bonuses.forEach(bonus => {
-      totalBonuses += bonus.amount;
+    // Calculate totals from forecast entries
+    forecasts.forEach(entry => {
+      const user = users.find(u => u.id === entry.userId);
+      if (!user) return;
+
+      const forecastHours = entry.forecastHours || 0;
+      const sellRate = entry.sellRate || 0;
+      const costRate = entry.costRate || 0;
+      const plannedBonus = entry.plannedBonus || 0;
+
+      totalRevenue += forecastHours * sellRate;
+      totalCost += forecastHours * costRate;
+      totalBonuses += plannedBonus;
     });
 
-    // Calculate for each user
-    users.forEach(user => {
-      const isEmployee = user.employeeType === 'employee';
-      const costRate = getCostRateForMonth(user.costRate || [], month);
-      const monthStart = format(new Date(month + '-01'), 'yyyy-MM-dd');
-
-      // Get all billable assignments for this user
-      const assignments = projects.flatMap(project =>
-        project.tasks
-          .filter(task => task.billable && task.userAssignments?.some(a => a.userId === user.id))
-          .map(task => ({
-            projectName: project.name,
-            taskName: task.name,
-            sellRate: getSellRateForDate(task.sellRates, monthStart)
-          }))
-      );
-
-      // Calculate average sell rate
-      const totalSellRate = assignments.reduce((sum, a) => sum + a.sellRate, 0);
-      const avgSellRate = assignments.length > 0 ? totalSellRate / assignments.length : 0;
-
-      // Get forecast hours for this user
-      const forecast = forecasts.find(f => f.userId === user.id);
-      const forecastHours = forecast?.hours ?? ((user.hoursPerWeek || 40) * (workingDays / 5));
-
-      if (isEmployee) {
-        // For employees, include cost for holidays and leave
-        const holidayHours = holidays.length * 8;
-        const totalHours = forecastHours + holidayHours;
-
-        // Calculate revenue and cost
-        totalRevenue += forecastHours * avgSellRate;
-        totalCost += totalHours * costRate;
-      } else {
-        // For contractors, simple calculation
-        totalRevenue += forecastHours * avgSellRate;
-        totalCost += forecastHours * costRate;
-      }
-    });
-
-    // Subtract bonuses from revenue
     totalCost += totalBonuses;
 
     // Calculate margin
@@ -89,7 +58,7 @@ export function ForecastSummaryCard({
       grossMargin,
       marginPercent
     };
-  }, [users, projects, forecasts, month, workingDays, holidays, bonuses]);
+  }, [forecasts, users]);
 
   return (
     <Card className="p-6 relative overflow-hidden">
