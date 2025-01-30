@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
 export default defineConfig({
+  
   root: './',
   plugins: [
     react()
@@ -13,7 +14,6 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
     watch: {
       usePolling: true
     }

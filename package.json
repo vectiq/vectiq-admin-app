@@ -1,12 +1,12 @@
 {
-  "name": "admin-app",
+  "name": "consultant-timesheet-app",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "deploy": "vite build && firebase deploy --only hosting:vectiq-admin-app",
+    "deploy": "vite build && firebase deploy --only hosting:vectiq-timesheet",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
