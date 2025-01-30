@@ -1,0 +1,475 @@
+/* Import Aeonik font variants */
+@font-face {
+  font-family: 'Aeonik';
+  src: url('/fonts/AeonikPro-Light.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* @font-face {
+  font-family: 'Aeonik';
+  src: url('/fonts/AeonikPro-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+} */
+
+/* @font-face {
+  font-family: 'Aeonik';
+  src: url('/fonts/AeonikPro-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+} */
+
+@font-face {
+  font-family: 'Aeonik';
+  src: url('/fonts/AeonikPro-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Italic variants */
+@font-face {
+  font-family: 'Aeonik';
+  src: url('/fonts/AeonikPro-LightItalic.otf') format('opentype');
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Aeonik';
+  src: url('/fonts/AeonikPro-RegularItalic.otf') format('opentype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Aeonik';
+  src: url('/fonts/AeonikPro-MediumItalic.otf') format('opentype');
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Aeonik';
+  src: url('/fonts/AeonikPro-BoldItalic.otf') format('opentype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* PrimeReact customizations */
+.p-datatable .p-datatable-header {
+  background: transparent;
+  border: none;
+  padding: 1rem 0;
+}
+
+.p-datatable .p-datatable-thead > tr > th {
+  background: #f9fafb;
+  border-width: 1px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.p-datatable .p-datatable-tbody > tr {
+  background: #ffffff;
+}
+
+.p-datatable .p-datatable-tbody > tr > td {
+  border-width: 1px;
+}
+
+.p-datatable .p-paginator {
+  background: transparent;
+  border: none;
+  padding: 1rem 0;
+}
+
+.p-datatable .p-paginator .p-paginator-pages .p-paginator-page.p-highlight {
+  background: #4f46e5;
+  color: #ffffff;
+}
+
+.p-inputtext:enabled:focus {
+  box-shadow: 0 0 0 2px #e0e7ff;
+  border-color: #6366f1;
+}
+
+/* Apply font family to all elements */
+@layer base {
+  * {
+    font-family: 'Aeonik', sans-serif !important;
+    letter-spacing: 0.025em;
+    line-height: 1.5;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    letter-spacing: 0.025em;
+    line-height: 1.25;
+  }
+
+  p {
+    letter-spacing: 0.025em;
+    line-height: 1.625;
+  }
+
+  .text-sm {
+    letter-spacing: 0.025em;
+  }
+
+  .text-xs {
+    letter-spacing: 0.025em;
+  }
+}
+
+/* Modern color scheme */
+:root {
+  --primary-50: #eef2ff;
+  --primary-100: #e0e7ff;
+  --primary-200: #c7d2fe;
+  --primary-500: #6366f1;
+  --primary-600: #4f46e5;
+  --primary-700: #4338ca;
+  --surface-50: #fafafa;
+  --surface-100: #f4f4f5;
+  --surface-200: #e4e4e7;
+  --surface-300: #d4d4d8;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Modern card styles */
+.modern-card {
+  @apply bg-white rounded-xl shadow-sm ring-1 ring-gray-950/5 hover:shadow-md transition-all duration-200;
+}
+
+/* Frosted glass effect */
+.glass {
+  @apply bg-white/80 backdrop-blur-lg;
+}
+
+/* Modern button styles */
+.btn-modern {
+  @apply rounded-lg px-4 py-2 font-medium transition-all duration-200
+    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500
+    disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-modern-primary {
+  @apply bg-primary-600 text-white hover:bg-primary-700 
+    active:bg-primary-800 shadow-sm hover:shadow;
+}
+
+.btn-modern-secondary {
+  @apply bg-white text-gray-700 hover:bg-gray-50
+    border border-gray-300 hover:border-gray-400;
+}
+
+/* Modern input styles */
+.input-modern {
+  @apply block w-full rounded-lg border-gray-300 shadow-sm
+    focus:border-primary-500 focus:ring-primary-500
+    placeholder:text-gray-400;
+}
+
+/* Modern table styles */
+.table-modern {
+  @apply min-w-full divide-y divide-gray-200 bg-white shadow-sm
+    ring-1 ring-gray-950/5 rounded-lg overflow-hidden;
+}
+
+.table-modern th {
+  @apply px-3 py-3.5 text-left text-sm font-medium text-gray-900
+    bg-gray-50/80 backdrop-blur-sm;
+}
+
+.table-modern td {
+  @apply px-3 py-4 text-sm text-gray-500 border-t border-gray-100;
+}
+
+/* Modern transitions */
+.fade-up {
+  animation: fadeUp 0.3s ease-out forwards;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Base transitions */
+* {
+  @apply transition-colors duration-200;
+}
+
+/* Micro-interactions */
+button, a {
+  @apply transition-all duration-200 active:scale-[0.97] hover:shadow-md;
+}
+
+/* Hover card effect */
+.hover-card {
+  @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5;
+}
+
+/* Input focus animations */
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  @apply transition-all duration-200;
+  @apply transform-gpu hover:shadow-sm focus:shadow-md;
+  @apply focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500;
+  @apply hover:border-gray-400;
+}
+
+/* Button press effect */
+.btn-modern {
+  @apply active:scale-[0.97] hover:shadow-md transition-all duration-200;
+}
+
+/* Table row hover effect */
+tr {
+  @apply transition-colors duration-150 hover:bg-gray-50/80;
+}
+
+/* Card hover effects */
+.card {
+  @apply transition-all duration-300;
+  @apply hover:shadow-lg hover:-translate-y-0.5;
+  @apply active:scale-[0.99];
+}
+
+/* Badge animations */
+.badge {
+  @apply transition-all duration-200;
+  @apply hover:scale-105 hover:shadow-sm;
+}
+
+/* Icon animations */
+.icon {
+  @apply transition-transform duration-200;
+  @apply hover:scale-110 hover:text-indigo-600;
+}
+
+/* Form field focus animation */
+.form-field {
+  @apply transition-all duration-200;
+  @apply focus-within:scale-[1.01];
+}
+
+/* Navigation link hover effect */
+.nav-link {
+  @apply transition-all duration-200;
+  @apply hover:bg-gray-50 hover:text-indigo-600;
+  @apply relative after:absolute after:bottom-0 after:left-0 after:h-0.5 
+         after:w-0 after:bg-indigo-600 after:transition-all after:duration-200
+         hover:after:w-full;
+}
+
+/* Loading animation */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Success checkmark animation */
+@keyframes checkmark {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.2); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-checkmark {
+  animation: checkmark 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Slide up animation */
+@keyframes slideUp {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out forwards;
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Glass effect */
+.glass {
+  @apply bg-white/80 backdrop-blur-sm;
+}
+
+/* Modern gradient backgrounds */
+.gradient-surface {
+  @apply bg-gradient-to-br from-gray-50 to-white;
+}
+
+.gradient-primary {
+  @apply bg-gradient-to-br from-primary-500 to-primary-600;
+}
+
+/* Gradient backgrounds */
+.gradient-bg {
+  @apply bg-gradient-to-br from-indigo-50 to-white;
+}
+
+/* Skeleton loading animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Improved focus styles */
+:focus-visible {
+  @apply outline-none ring-2 ring-indigo-500 ring-offset-2;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 rounded-full hover:bg-gray-400 transition-colors;
+}
+
+/* Loading spinner animation */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin 2s linear infinite;
+}
+
+/* Bell notification animation */
+@keyframes bellRing {
+  0%, 100% { transform: rotate(0); }
+  10% { transform: rotate(10deg); }
+  20%, 40% { transform: rotate(-10deg); }
+  30% { transform: rotate(8deg); }
+  50% { transform: rotate(0); }
+}
+
+.animate-bell {
+  transform-origin: top center;
+  animation: bellRing 1s ease-in-out;
+}
+
+.bell-icon {
+  @apply transition-transform duration-200 hover:scale-110;
+}
+
+.bell-icon:hover {
+  animation: bellRing 1s ease-in-out;
+}
+
+/* Note indicator animations */
+@keyframes pulseRing {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(249, 115, 22, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+}
+
+.note-indicator {
+  @apply relative transition-all duration-300;
+}
+
+.note-indicator-action {
+  animation: pulseRing 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.note-indicator::after {
+  @apply absolute -top-1 -right-1 h-2 w-2 rounded-full transform scale-0 transition-transform duration-300;
+  content: '';
+}
+
+.note-indicator-info::after {
+  @apply bg-blue-500 scale-100;
+}
+
+.note-indicator-action::after {
+  @apply bg-amber-500 scale-100;
+}
+
+@keyframes slideIn {
+  from {
+    transform: scaleY(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out forwards;
+  transform-origin: top;
+}
