@@ -7,6 +7,7 @@ import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { RoleProtectedRoute } from '@/components/auth/RoleProtectedRoute';
 import { Layout } from '@/components/layout/Layout';
 import Login from '@/pages/Login';
+import Welcome from '@/pages/Welcome';
 import Processing from '@/pages/Processing';
 import Forecast from '@/pages/Forecast';
 import Bonuses from '@/pages/Bonuses';
@@ -63,6 +64,10 @@ export default function App() {
               </ProtectedRoute>
             }
           >
+            <Route
+              index
+              element={<Welcome />}
+            />
             <Route
               path="reports"
               element={

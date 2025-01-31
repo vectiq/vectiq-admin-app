@@ -2,8 +2,11 @@ import { Outlet } from 'react-router-dom';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { cn } from '@/lib/utils/styles';
+import { useState } from 'react';
 
 export function Layout() {
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+
   return (
     <div className="min-h-screen bg-gray-100 relative overflow-hidden">
       {/* Triangular Geometric Pattern with Opacity Gradient */}
@@ -36,8 +39,11 @@ export function Layout() {
       </div>
 
       <Navbar />
-      <Sidebar />
-      <main className="lg:pl-72 pt-16">
+      <Sidebar isExpanded={isSidebarExpanded} onExpandedChange={setIsSidebarExpanded} />
+      <main className={cn(
+        "lg:pl-16 pt-16 transition-all duration-300",
+        isSidebarExpanded && "lg:pl-72"
+      )}>
         <div className={cn(
           "px-4 py-8 sm:px-6 lg:px-8",
           "relative z-10"

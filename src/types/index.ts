@@ -16,6 +16,13 @@ export interface ProjectTask {
     userId: string;
     userName: string;
     assignedAt: string;
+    plannedBonus: number;
+    plannedLeave: number;
+    publicHolidays: number;
+    isPotential?: boolean;
+    startDate?: string;
+    name?: string;
+    employeeType?: 'employee' | 'contractor';
   }>;
 }
 
@@ -60,6 +67,10 @@ export interface SavedForecast {
     plannedBonus: number;
     plannedLeave: number;
     publicHolidays: number;
+    isPotential?: boolean;
+    startDate?: string;
+    name?: string;
+    employeeType?: 'employee' | 'contractor';
   }>;
 }
 

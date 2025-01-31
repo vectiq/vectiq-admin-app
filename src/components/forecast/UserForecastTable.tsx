@@ -7,8 +7,11 @@ import { formatCurrency } from '@/lib/utils/currency';
 import { format, parseISO } from 'date-fns';
 import { getSellRateForDate, getCostRateForMonth, getAverageSellRate } from '@/lib/utils/rates';
 import { usePublicHolidays } from '@/lib/hooks/usePublicHolidays';
+import { Users, Briefcase, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 import { useLeaveForecasts } from '@/lib/hooks/useLeaveForecasts';
 import { useBonuses } from '@/lib/hooks/useBonuses';
+import { PotentialStaffDialog } from './PotentialStaffDialog';
 import type { User, Project } from '@/types';
 
 interface UserForecastTableProps {
@@ -31,18 +34,29 @@ export function UserForecastTable({
   onForecastChange
 }: UserForecastTableProps) {
   const [editingCell, setEditingCell] = useState<string | null>(null);
-  const [localData, setLocalData] = useState<Record<string, {
-    hoursPerWeek: number;
-    billablePercentage: number;
-    sellRate: number;
-    costRate: number;
-    plannedBonus: number;
-    forecastHours: number;
-  }>>({});
+  const [isAddingStaff, setIsAddingStaff] = useState(false);
+  const [addingStaffType, setAddingStaffType] = useState<'employee' | 'contractor'>('employee');
+  const [localData, setLocalData] = useState<Record<string, any>>({});
 
   const { leaveData } = useLeaveForecasts(month);
   const { holidays } = usePublicHolidays(month);
   const { bonuses } = useBonuses(month);
+
+  // Create combined array of regular users and potential staff
+  const allUsers = useMemo(() => {
+    const potentialStaff = forecasts
+      .filter(entry => entry.isPotential)
+      .map(entry => ({
+        id: entry.userId,
+        name: entry.name,
+        employeeType: entry.employeeType,
+        hoursPerWeek: entry.hoursPerWeek,
+        isPotential: true,
+        startDate: entry.startDate
+      }));
+
+    return [...users, ...potentialStaff];
+  }, [users, forecasts]);
   
   // Get total bonuses for a user in the selected month
   const getUserBonuses = useCallback((userId: string) => {
@@ -54,18 +68,40 @@ export function UserForecastTable({
   // Initialize local data from selected forecast
   useEffect(() => {
     const newLocalData = {};
+    const monthStart = new Date(month + '-01');
+    const monthEnd = new Date(monthStart);
+    monthEnd.setMonth(monthEnd.getMonth() + 1);
+    monthEnd.setDate(0);
 
-    if (selectedForecast && Array.isArray(selectedForecast.entries)) {
-      // Initialize from selected forecast entries
-      selectedForecast.entries.forEach(entry => {
+    if (Array.isArray(forecasts)) {
+      // Initialize from forecasts array
+      forecasts.forEach(entry => {
         if (entry && entry.userId) {
+          let forecastHours = entry.forecastHours;
+          
+          // Adjust hours for potential staff based on start date
+          if (entry.isPotential && entry.startDate) {
+            const startDate = new Date(entry.startDate);
+            if (startDate > monthEnd) {
+              // Starting in future month
+              forecastHours = 0;
+            } else if (startDate > monthStart) {
+              // Starting this month - pro-rate the hours
+              const remainingWorkingDays = workingDays * (monthEnd.getDate() - startDate.getDate() + 1) / monthEnd.getDate();
+              forecastHours = (entry.hoursPerWeek / 5) * remainingWorkingDays;
+            }
+          }
+
           newLocalData[entry.userId] = {
             hoursPerWeek: entry.hoursPerWeek,
             billablePercentage: entry.billablePercentage,
             sellRate: entry.sellRate,
             costRate: entry.costRate,
             plannedBonus: entry.plannedBonus,
-            forecastHours: entry.forecastHours
+            forecastHours,
+            name: entry.name,
+            isPotential: entry.isPotential,
+            startDate: entry.startDate
           };
         }
       });
@@ -98,6 +134,32 @@ export function UserForecastTable({
         [field]: value
       }
     };
+
+    // If changing hoursPerWeek, recalculate forecast hours based on start date
+    if (field === 'hoursPerWeek') {
+      const userData = localData[userId];
+      if (userData.isPotential && userData.startDate) {
+        const startDate = new Date(userData.startDate);
+        const monthStart = new Date(month + '-01');
+        const monthEnd = new Date(monthStart);
+        monthEnd.setMonth(monthEnd.getMonth() + 1);
+        monthEnd.setDate(0);
+
+        // Calculate forecast hours based on start date
+        if (startDate > monthEnd) {
+          // Starting in future month
+          newData[userId].forecastHours = 0;
+        } else if (startDate > monthStart) {
+          // Starting this month - pro-rate the hours
+          const remainingWorkingDays = workingDays * (monthEnd.getDate() - startDate.getDate() + 1) / monthEnd.getDate();
+          newData[userId].forecastHours = (value / 5) * remainingWorkingDays;
+        } else {
+          // Started in previous month or at start of this month
+          newData[userId].forecastHours = (value / 5) * workingDays;
+        }
+      }
+    }
+
     setLocalData(newData);
     
     if (onForecastChange) {
@@ -134,23 +196,117 @@ export function UserForecastTable({
 
   // Separate users by type
   const { employees, contractors } = useMemo(() => {
-    return users.reduce((acc, user) => {
+    return allUsers.reduce((acc, user) => {
       if (user.employeeType === 'employee') {
         acc.employees.push(user);
       } else if (user.employeeType === 'contractor') {
         acc.contractors.push(user);
       }
       return acc;
-    }, { employees: [] as User[], contractors: [] as User[] });
-  }, [users]);
+    }, { employees: [] as any[], contractors: [] as any[] });
+  }, [allUsers]);
 
   const renderUserTable = (users: User[], title: string, isEmployee: boolean) => {
     if (users.length === 0) return null;
 
+    const handleAddPotentialStaff = () => {
+      setAddingStaffType(isEmployee ? 'employee' : 'contractor');
+      setIsAddingStaff(true);
+    };
+
+    const handleSubmitPotentialStaff = (data: {
+      name: string;
+      employeeType: 'employee' | 'contractor';
+      hoursPerWeek: number;
+      billablePercentage: number;
+      sellRate: number;
+      costRate: number;
+      startDate: string;
+    }) => {
+      if (!onForecastChange) return;
+
+      const userId = crypto.randomUUID();
+      const newEntry = {
+        userId,
+        name: data.name,
+        employeeType: data.employeeType,
+        hoursPerWeek: data.hoursPerWeek,
+        billablePercentage: data.billablePercentage,
+        sellRate: data.sellRate,
+        costRate: data.costRate,
+        plannedBonus: 0,
+        forecastHours: data.hoursPerWeek * (workingDays / 5),
+        plannedLeave: 0,
+        publicHolidays: holidays.length * 8,
+        isPotential: true,
+        startDate: data.startDate
+      };
+
+      // Update local data first
+      setLocalData(prev => ({
+        ...prev,
+        [userId]: {
+          hoursPerWeek: data.hoursPerWeek,
+          billablePercentage: data.billablePercentage,
+          sellRate: data.sellRate,
+          costRate: data.costRate,
+          plannedBonus: 0,
+          forecastHours: data.hoursPerWeek * (workingDays / 5),
+          name: data.name,
+          isPotential: true,
+          startDate: data.startDate
+        }
+      }));
+
+      // Add new entry to users array
+      users.push({
+        id: userId,
+        name: data.name,
+        employeeType: data.employeeType,
+        hoursPerWeek: data.hoursPerWeek,
+        isPotential: true,
+        startDate: data.startDate,
+        ...newEntry
+      });
+
+      // Update parent component
+      const newForecasts = forecasts ? [...forecasts, newEntry] : [newEntry];
+      onForecastChange(newForecasts);
+      setIsAddingStaff(false);
+    };
+
     return (
-      <div className="space-y-4">
-        <div className="bg-gray-50 px-4 py-2 rounded-lg">
-          <h3 className="font-medium text-gray-900">{title}</h3>
+      <>
+        <Card className="overflow-hidden">
+          <div className="bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+            {isEmployee ? (
+              <div className="p-2 bg-indigo-50 rounded-lg">
+                <Users className="h-5 w-5 text-indigo-600" />
+              </div>
+            ) : (
+              <div className="p-2 bg-emerald-50 rounded-lg">
+                <Briefcase className="h-5 w-5 text-emerald-600" />
+              </div>
+            )}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+              <p className="text-sm text-gray-500">
+                {users.length} {users.length === 1 ? 'person' : 'people'}
+              </p>
+            </div>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleAddPotentialStaff}
+              disabled={!selectedForecast}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Potential {isEmployee ? 'Employee' : 'Contractor'}
+            </Button>
+          </div>
         </div>
 
         <Table>
@@ -184,7 +340,16 @@ export function UserForecastTable({
 
               return (
                 <tr key={user.id}>
-                  <Td className="font-medium">{user.name}</Td>
+                  <Td className="font-medium">
+                    {user.isPotential ? (
+                      <div className="flex items-center gap-2">
+                        <span>{userData.name}</span>
+                        <Badge variant="warning">Potential</Badge>
+                      </div>
+                    ) : (
+                      user.name
+                    )}
+                  </Td>
                   <Td className="text-right p-0">
                     <EditableTimeCell
                       className="text-center"
@@ -287,12 +452,20 @@ export function UserForecastTable({
             })}
           </TableBody>
         </Table>
-      </div>
+        </Card>
+        <PotentialStaffDialog
+          open={isAddingStaff && addingStaffType === (isEmployee ? 'employee' : 'contractor')}
+          onOpenChange={setIsAddingStaff}
+          onSubmit={handleSubmitPotentialStaff}
+          isEmployee={isEmployee}
+          workingDays={workingDays}
+        />
+      </>
     );
   };
 
   return (
-    <div className="space-y-8">
+    <div className="grid grid-cols-1 gap-8">
       {renderUserTable(employees, "Employees", true)}
       {renderUserTable(contractors, "Contractors", false)}
     </div>

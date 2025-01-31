@@ -40,11 +40,11 @@ export default function Forecast() {
   const [selectedForecastId, setSelectedForecastId] = useState<string>('');
   const [isNewForecastDialogOpen, setIsNewForecastDialogOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [forecasts, setForecasts] = useState<SavedForecast['entries']>([]);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; forecastId: string | null }>({
     isOpen: false,
     forecastId: null
   });
-  const [forecasts, setForecasts] = useState([]);
   const currentMonth = format(currentDate, 'yyyy-MM');
   const workingDays = getWorkingDaysForMonth(currentMonth);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -134,6 +134,16 @@ export default function Forecast() {
       }
     }
   }, [savedForecasts, selectedForecastId]);
+
+  // Update forecasts when selected forecast changes
+  useEffect(() => {
+    const selectedForecast = savedForecasts.find(f => f.id === selectedForecastId);
+    if (selectedForecast) {
+      setForecasts(selectedForecast.entries);
+      setHasUnsavedChanges(false);
+    }
+  }, [selectedForecastId, savedForecasts]);
+
   // Filter for active projects only
   const projects = useMemo(() => {
     return allProjects.filter(project => {
@@ -288,6 +298,7 @@ export default function Forecast() {
           {selectedForecastId && (
             <Button
               variant="secondary"
+              disabled={savedForecasts.find(f => f.id === selectedForecastId)?.name.startsWith('Default -')}
               size="sm"
               className="p-1.5 text-red-500 hover:text-red-600"
               title="Delete Current Forecast"
@@ -322,22 +333,20 @@ export default function Forecast() {
 
       <WorkingDaysPanel selectedDate={currentDate} />
 
-      <div className="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
-        <UserForecastTable
-          users={users}
-          projects={projects}
-          forecasts={forecasts}
-          selectedForecast={savedForecasts.find(f => f.id === selectedForecastId)}
-          onForecastChange={(entries) => {
-            if (selectedForecastId) {
-              setForecasts(entries);
-              setHasUnsavedChanges(true);
-            }
-          }}
-          month={currentMonth}
-          workingDays={workingDays}
-        />
-      </div>
+      <UserForecastTable
+        users={users}
+        projects={projects}
+        forecasts={forecasts}
+        selectedForecast={savedForecasts.find(f => f.id === selectedForecastId)}
+        onForecastChange={(entries) => {
+          if (selectedForecastId) {
+            setForecasts(entries);
+            setHasUnsavedChanges(true);
+          }
+        }}
+        month={currentMonth}
+        workingDays={workingDays}
+      />
 
       <SaveForecastDialog
         open={isNewForecastDialogOpen}

@@ -38,9 +38,12 @@ export default function Login() {
             <Briefcase className="h-8 w-8 text-indigo-600" />
           </div>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
-          Sign in to your account
+        <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900 mb-2">
+          Vectiq Management App
         </h2>
+        <p className="text-center text-sm text-gray-600">
+          Sign in to your account to continue
+        </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">

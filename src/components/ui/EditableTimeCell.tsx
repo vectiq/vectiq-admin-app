@@ -27,14 +27,12 @@ export function EditableTimeCell({
 
   useEffect(() => {
     if (isEditing) {
-      setLocalValue(value?.toString() || '');
-      // Use requestAnimationFrame to ensure DOM is ready
-      requestAnimationFrame(() => {
-        if (inputRef.current) {
-          inputRef.current.focus();
-          inputRef.current.select();
-        }
-      });
+      setLocalValue(typeof value === 'number' ? value.toString() : '');
+      // Use a small timeout to ensure the input is mounted and ready
+      setTimeout(() => {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }, 10);
     }
   }, [isEditing, value]);
 
@@ -61,7 +59,7 @@ export function EditableTimeCell({
       }
       onEndEdit();
     } else if (e.key === 'Escape') {
-      setLocalValue(value?.toString() || '');
+      setLocalValue(typeof value === 'number' ? value.toString() : '');
       onEndEdit();
     }
   };
@@ -75,7 +73,7 @@ export function EditableTimeCell({
       onChange={handleChange}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
-      className="text-center"
+      className="text-center w-24 mx-auto"
     />
   ) : (
     <div className="relative">
@@ -83,7 +81,7 @@ export function EditableTimeCell({
         onClick={(isDisabled || isLocked) ? undefined : onStartEdit}
         role="button"
         tabIndex={0}
-        aria-label={`${value?.toFixed(2) || '-'} hours`}
+        aria-label={`${typeof value === 'number' ? value.toFixed(2) : '-'} hours`}
         className={cn(
           "py-2 text-center cursor-pointer rounded hover:bg-gray-50",
           value === null && "text-gray-400",
@@ -100,7 +98,7 @@ export function EditableTimeCell({
           }
         }}
       >
-        {value?.toFixed(2) || '-'}
+        {typeof value === 'number' ? value.toFixed(2) : '-'}
       </div>
       {isLocked && (
         <Lock className="h-3 w-3 text-gray-400 absolute -top-1 -right-1" />
