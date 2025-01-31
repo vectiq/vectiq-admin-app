@@ -1,5 +1,14 @@
 {
   "projects": {
     "default": "vectiq-timesheet"
+  },
+  "targets": {
+    "vectiq-timesheet": {
+      "hosting": {
+        "vectiq-admin": [
+          "vectiq-admin-app"
+        ]
+      }
+    }
   }
 }
