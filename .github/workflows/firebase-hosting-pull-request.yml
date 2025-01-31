@@ -15,7 +15,7 @@ env:
   VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID}}
   VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID}}
   VITE_FIREBASE_API_URL: "https://us-central1-vectiq-timesheet.cloudfunctions.net"
-  VITE_APP_URL: "http://admin.vectiq.digital"
+  VITE_APP_URL: "http://management.vectiq.digital"
   VITE_EMAIL_SECRET: ${{ secrets.VITE_EMAIL_SECRET}}
 jobs:
   build_and_preview:
