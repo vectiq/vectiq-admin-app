@@ -71,7 +71,7 @@ export function UserDialog({
     <SlidePanel
       open={open}
       onClose={() => onOpenChange(false)}
-      title={user ? 'Edit User' : 'New User'}
+      title={user ? 'Edit Staff Member' : 'New Staff Member'}
       subtitle={!user ? 'A temporary password will be generated and a password reset email will be sent.' : undefined}
       icon={<UserIcon className="h-5 w-5 text-indigo-500" />}
     >
@@ -217,7 +217,7 @@ export function UserDialog({
               Cancel
             </Button>
             <Button type="submit">
-              {user ? 'Update' : 'Create'} User
+              {user ? 'Update' : 'Create'} Staff Member
             </Button>
           </div>
         </form>

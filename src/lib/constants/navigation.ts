@@ -7,7 +7,7 @@ export const navigationItems = [
   { name: 'Forecasting', href: '/forecast', icon: TrendingUp, roles: ['admin'] },
   { name: 'Projects', href: '/projects', icon: FolderKanban, roles: ['admin'] },
   { name: 'Clients', href: '/clients', icon: Building2, roles: ['admin'] },
-  { name: 'Users', href: '/users', icon: UserCircle, roles: ['admin'] },
+  { name: 'Staff', href: '/users', icon: UserCircle, roles: ['admin'] },
   { name: 'Teams', href: '/teams', icon: Users, roles: ['admin'] },
   { name: 'Admin', href: '/admin', icon: Settings, roles: ['admin'] },
 ] as const;

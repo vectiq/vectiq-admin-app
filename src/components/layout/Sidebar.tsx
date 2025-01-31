@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { navigationItems } from '@/lib/constants/navigation';
 import { useUsers } from '@/lib/hooks/useUsers';
 import { useMemo } from 'react';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/Tooltip';
 import { cn } from '@/lib/utils/styles';
 import { ChevronRight } from 'lucide-react';
 
@@ -23,6 +24,7 @@ export function Sidebar({ isExpanded, onExpandedChange }: SidebarProps) {
   );
 
   return (
+    <TooltipProvider>
     <div className={cn(
       "hidden lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:flex-col overflow-hidden",
       "transition-all duration-300 bg-white shadow-xl relative",
@@ -50,7 +52,8 @@ export function Sidebar({ isExpanded, onExpandedChange }: SidebarProps) {
                   const isActive = location.pathname === item.href;
 
                   return (
-                    <li key={item.name}>
+                    <Tooltip key={item.name} delayDuration={0}>
+                      <li>
                       <Link
                         to={item.href}
                         className={cn(
@@ -61,8 +64,8 @@ export function Sidebar({ isExpanded, onExpandedChange }: SidebarProps) {
                             ? 'bg-gray-50 text-indigo-600 font-medium'
                             : 'text-gray-700 hover:text-gray-900 font-medium'
                         )}
-                        title={!isExpanded ? item.name : undefined}
                       >
+                        <TooltipTrigger asChild>
                         <Icon
                           className={cn(
                             'h-6 w-6 shrink-0 transition-transform',
@@ -72,11 +75,18 @@ export function Sidebar({ isExpanded, onExpandedChange }: SidebarProps) {
                               : 'text-gray-500 group-hover:text-gray-900'
                           )}
                         />
+                        </TooltipTrigger>
                         {isExpanded && (
                           <span className="font-medium tracking-wide">{item.name}</span>
                         )}
+                        {!isExpanded && (
+                          <TooltipContent side="right" sideOffset={10}>
+                            {item.name}
+                          </TooltipContent>
+                        )}
                       </Link>
-                    </li>
+                      </li>
+                    </Tooltip>
                   );
                 })}
               </ul>
@@ -137,5 +147,6 @@ export function Sidebar({ isExpanded, onExpandedChange }: SidebarProps) {
         </button>
       </div>
     </div>
+    </TooltipProvider>
   );
 }

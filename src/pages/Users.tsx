@@ -83,10 +83,10 @@ export default function Users() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold text-gray-900">Users</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">Staff</h1>
         <Button onClick={handleOpenCreateDialog}>
           <Plus className="h-4 w-4 mr-2" />
-          New User
+          New Staff Member
         </Button>
       </div>
 

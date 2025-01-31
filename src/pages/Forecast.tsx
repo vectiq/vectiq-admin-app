@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { format, addMonths, subMonths, startOfMonth, addYears, subYears } from 'date-fns';
+import { MultiMonthForecast } from '@/components/forecast/MultiMonthForecast';
 import { useUsers } from '@/lib/hooks/useUsers';
 import { useProjects } from '@/lib/hooks/useProjects';
 import { useForecasts } from '@/lib/hooks/useForecasts';
@@ -30,13 +31,46 @@ import {
 } from '@/components/ui/AlertDialog';
 
 const VIEW_OPTIONS = [
-  { id: 'monthly', label: 'Monthly View' },
-  { id: 'yearly', label: 'Financial Year' }
+  { id: 'monthly', label: 'Single Month' },
+  { id: 'multi', label: 'Multi-Month' }
 ] as const;
 
 export default function Forecast() {
-  const [view, setView] = useState<'monthly' | 'yearly'>('monthly');
-  const [currentDate, setCurrentDate] = useState(startOfMonth(new Date()));
+  const [view, setView] = useState<'monthly' | 'multi'>('monthly');
+  const [currentDate, setCurrentDate] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const monthParam = params.get('month');
+    return monthParam ? 
+      startOfMonth(new Date(monthParam + '-01')) : 
+      startOfMonth(new Date());
+  });
+  const [dateRange, setDateRange] = useState({
+    startDate: format(currentDate, 'yyyy-MM-dd'),
+    endDate: format(addMonths(currentDate, 5), 'yyyy-MM-dd')
+  });
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // Handle URL params on initial load
+  useEffect(() => {
+    if (isInitialLoad) {
+      const params = new URLSearchParams(window.location.search);
+      const viewParam = params.get('view');
+      if (viewParam === 'monthly' || viewParam === 'multi') {
+        setView(viewParam);
+      }
+      setIsInitialLoad(false);
+    }
+  }, [isInitialLoad]);
+
+  // Update URL when view or date changes
+  useEffect(() => {
+    const params = new URLSearchParams();
+    params.set('view', view);
+    if (view === 'monthly') {
+      params.set('month', format(currentDate, 'yyyy-MM'));
+    }
+    window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+  }, [view, currentDate]);
   const [selectedForecastId, setSelectedForecastId] = useState<string>('');
   const [isNewForecastDialogOpen, setIsNewForecastDialogOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -234,8 +268,10 @@ export default function Forecast() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div>
           <h1 className="text-2xl font-semibold text-gray-900">Forecast</h1>
+        </div>
+        <div className="flex items-center gap-3">
           <div className="flex rounded-lg shadow-sm">
             {VIEW_OPTIONS.map(option => (
               <Button
@@ -243,7 +279,7 @@ export default function Forecast() {
                 variant={view === option.id ? 'primary' : 'secondary'}
                 className={cn(
                   option.id === 'monthly' && 'rounded-r-none',
-                  option.id === 'yearly' && 'rounded-l-none'
+                  option.id === 'multi' && 'rounded-l-none'
                 )}
                 onClick={() => setView(option.id)}
               >
@@ -252,101 +288,113 @@ export default function Forecast() {
             ))}
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setIsNewForecastDialogOpen(true)}
-            className="p-1.5"
-            title="Create New Forecast"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-
-          <Select
-            value={selectedForecastId}
-            onValueChange={setSelectedForecastId}
-          >
-            <SelectTrigger className="w-[250px]">
-              {selectedForecastId ? 
-                savedForecasts.find(f => f.id === selectedForecastId)?.name : 
-                'Select Saved Forecast'}
-            </SelectTrigger>
-            <SelectContent>
-              {savedForecasts.map(forecast => (
-                <SelectItem key={forecast.id} value={forecast.id}>
-                  {forecast.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={!selectedForecastId || !hasUnsavedChanges}
-            className="p-1.5"
-            title="Save Current Forecast"
-            onClick={handleSaveCurrentForecast}
-          >
-            <Save className="h-4 w-4" />
-            {hasUnsavedChanges && (
-              <span className="absolute -top-1 -right-1 h-2 w-2 bg-amber-500 rounded-full" />
-            )}
-          </Button>
-
-          {selectedForecastId && (
-            <Button
-              variant="secondary"
-              disabled={savedForecasts.find(f => f.id === selectedForecastId)?.name.startsWith('Default -')}
-              size="sm"
-              className="p-1.5 text-red-500 hover:text-red-600"
-              title="Delete Current Forecast"
-              onClick={() => setDeleteConfirmation({ 
-                isOpen: true, 
-                forecastId: selectedForecastId 
-              })}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          )}
-
-          <DateNavigation
-            currentDate={currentDate}
-            onPrevious={handlePrevious}
-            onNext={handleNext}
-            onToday={handleToday}
-            formatString={view === 'monthly' ? 'MMMM yyyy' : `FY${format(financialYearStart, 'yy')}/${format(financialYearEnd, 'yy')}`}
-          />
-        </div>
       </div>
 
-      <ForecastSummaryCard
-        users={users}
-        projects={projects}
-        forecasts={forecasts}
-        month={currentMonth}
-        workingDays={workingDays}
-        holidays={holidays}
-        bonuses={bonuses}
-      />
+      {view === 'monthly' ? (
+        <>
+          <div className="flex justify-between items-center">
+            <DateNavigation
+              currentDate={currentDate}
+              onPrevious={handlePrevious}
+              onNext={handleNext}
+              onToday={handleToday}
+              formatString="MMMM yyyy"
+            />
+            <div className="flex items-center gap-3">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsNewForecastDialogOpen(true)}
+                className="p-1.5"
+                title="Create New Forecast"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
 
-      <WorkingDaysPanel selectedDate={currentDate} />
+              <Select
+                value={selectedForecastId}
+                onValueChange={setSelectedForecastId}
+              >
+                <SelectTrigger className="w-[250px]">
+                  {selectedForecastId ? 
+                    savedForecasts.find(f => f.id === selectedForecastId)?.name : 
+                    'Select Saved Forecast'}
+                </SelectTrigger>
+                <SelectContent>
+                  {savedForecasts.map(forecast => (
+                    <SelectItem key={forecast.id} value={forecast.id}>
+                      {forecast.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-      <UserForecastTable
-        users={users}
-        projects={projects}
-        forecasts={forecasts}
-        selectedForecast={savedForecasts.find(f => f.id === selectedForecastId)}
-        onForecastChange={(entries) => {
-          if (selectedForecastId) {
-            setForecasts(entries);
-            setHasUnsavedChanges(true);
-          }
-        }}
-        month={currentMonth}
-        workingDays={workingDays}
-      />
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={!selectedForecastId || !hasUnsavedChanges}
+                className="p-1.5"
+                title="Save Current Forecast"
+                onClick={handleSaveCurrentForecast}
+              >
+                <Save className="h-4 w-4" />
+                {hasUnsavedChanges && (
+                  <span className="absolute -top-1 -right-1 h-2 w-2 bg-amber-500 rounded-full" />
+                )}
+              </Button>
+
+              {selectedForecastId && (
+                <Button
+                  variant="secondary"
+                  disabled={savedForecasts.find(f => f.id === selectedForecastId)?.name.startsWith('Default -')}
+                  size="sm"
+                  className="p-1.5 text-red-500 hover:text-red-600"
+                  title="Delete Current Forecast"
+                  onClick={() => setDeleteConfirmation({ 
+                    isOpen: true, 
+                    forecastId: selectedForecastId 
+                  })}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <ForecastSummaryCard
+            users={users}
+            projects={projects}
+            forecasts={forecasts}
+            month={currentMonth}
+            workingDays={workingDays}
+            holidays={holidays}
+            bonuses={bonuses}
+          />
+
+          <WorkingDaysPanel selectedDate={currentDate} />
+
+          <UserForecastTable
+            users={users}
+            projects={projects}
+            forecasts={forecasts}
+            selectedForecast={savedForecasts.find(f => f.id === selectedForecastId)}
+            onForecastChange={(entries) => {
+              if (selectedForecastId) {
+                setForecasts(entries);
+                setHasUnsavedChanges(true);
+              }
+            }}
+            month={currentMonth}
+            workingDays={workingDays}
+          />
+        </>
+      ) : (
+        <MultiMonthForecast
+          startDate={new Date(dateRange.startDate)}
+          endDate={new Date(dateRange.endDate)}
+          onDateRangeChange={setDateRange}
+        />
+      )}
 
       <SaveForecastDialog
         open={isNewForecastDialogOpen}
