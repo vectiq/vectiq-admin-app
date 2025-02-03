@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useUsers } from '@/lib/hooks/useUsers';
 import { Button } from '@/components/ui/Button';
-import { Plus, AlertTriangle } from 'lucide-react';
+import { Checkbox } from '@/components/ui/Checkbox';
+import { Plus, AlertTriangle, Users as UsersIcon } from 'lucide-react';
+import { cn } from '@/lib/utils/styles';
 import { UsersTable } from '@/components/users/UsersTable';
 import { UserDialog } from '@/components/users/UserDialog';
 import { RatesDialog } from '@/components/users/RatesDialog';
@@ -19,6 +21,7 @@ import {
 import type { User } from '@/types';
 
 export default function Users() {
+  const [showPotentialOnly, setShowPotentialOnly] = useState(false);
   const { 
     users, 
     isLoading, 
@@ -80,19 +83,32 @@ export default function Users() {
     return <LoadingScreen />;
   }
 
+  const filteredUsers = showPotentialOnly 
+    ? users.filter(user => user.isPotential)
+    : users;
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between">
         <h1 className="text-2xl font-semibold text-gray-900">Staff</h1>
-        <Button onClick={handleOpenCreateDialog}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Staff Member
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              checked={showPotentialOnly}
+              onCheckedChange={(checked: boolean) => setShowPotentialOnly(checked)}
+              label="Show potential staff only"
+            />
+          </div>
+          <Button onClick={handleOpenCreateDialog}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Staff Member
+          </Button>
+        </div>
       </div>
 
       <div className="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
         <UsersTable 
-          users={users}
+          users={filteredUsers}
           onEdit={handleEdit}
           onManageRates={handleManageRates}
           onDelete={handleDelete}

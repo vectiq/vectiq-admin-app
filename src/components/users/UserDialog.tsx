@@ -7,10 +7,12 @@ import { SlidePanel } from '@/components/ui/SlidePanel';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Checkbox } from '@/components/ui/Checkbox';
+import { Badge } from '@/components/ui/Badge';
 import { FormField } from '@/components/ui/FormField';
 import { Link, User as UserIcon, Briefcase, Users } from 'lucide-react';
 import type { User } from '@/types';
 import { useTeams } from '@/lib/hooks/useTeams';
+import { format } from 'date-fns';
 
 interface UserDialogProps {
   open: boolean;
@@ -28,16 +30,20 @@ export function UserDialog({
   const {
     register,
     handleSubmit,
+    formState: { errors },
     watch,
     setValue,
     reset,
-    formState: { errors }, 
+    clearErrors,
+    trigger,
   } = useForm<Omit<User, 'id' | 'createdAt' | 'updatedAt'>>({
     defaultValues: user || {
       email: '',
       name: '',
       employeeType: 'employee',
       role: 'user',
+      startDate: format(new Date(), 'yyyy-MM-dd'),
+      isPotential: false,
       projectAssignments: [],
       overtime: 'no',
     },
@@ -47,7 +53,15 @@ export function UserDialog({
   const { users } = useUsers();
   const { teams } = useTeams();
   const employeeType = watch('employeeType');
+  const isPotential = watch('isPotential');
   
+  // Watch for changes to isPotential to trigger email validation
+  useEffect(() => {
+    if (!isPotential && user?.isPotential) {
+      trigger('email');
+    }
+  }, [isPotential, user, trigger]);
+
   useEffect(() => {
     if (open) {
       reset(user || {
@@ -82,32 +96,78 @@ export function UserDialog({
             <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
               <UserIcon className="h-4 w-4" />
               Basic Information
+              <div className="ml-auto">
+                <Checkbox
+                  {...register('isPotential')}
+                  disabled={user && !user.isPotential}
+                  onCheckedChange={(checked) => {
+                    setValue('isPotential', checked);
+                    if (checked) {
+                      // Clear email when marking as potential
+                      setValue('email', '');
+                      clearErrors('email');
+                    } else {
+                      // Validate email when converting to regular staff
+                      trigger('email');
+                    }
+                  }}
+                  label={
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">Potential Staff</span>
+                      {watch('isPotential') && (
+                        <Badge variant="warning">Potential</Badge>
+                      )}
+                    </div>
+                  }
+                />
+              </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4">
               <FormField label="Name">
                 <Input
-                  {...register('name')}
+                  {...register('name', { required: true })}
+                  className={cn(errors.name && "border-red-500")}
                   placeholder="Enter full name"
                 />
-              </FormField>
-
-              <FormField label="Email">
-                <Input
-                  {...register('email')}
-                  readOnly={!!user}
-                  disabled={!!user}
-                  className={cn(
-                    user && "bg-gray-50"
-                  )}
-                  placeholder="email@example.com"
-                />
-                {user && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    Email can only be changed in profile settings
-                  </p>
+                {errors.name && (
+                  <p className="mt-1 text-xs text-red-500">Name is required</p>
                 )}
               </FormField>
+
+              {!isPotential && (
+                <FormField label="Email">
+                  <Input
+                    {...register('email', { 
+                      required: {
+                        value: !isPotential,
+                        message: 'Email is required when converting to regular staff'
+                      },
+                      pattern: {
+                        value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                        message: 'Invalid email address'
+                      }
+                    })}
+                    readOnly={!!user && !user.isPotential}
+                    disabled={!!user && !user.isPotential}
+                    className={cn(
+                      user && !user.isPotential && "bg-gray-50",
+                      errors.email && "border-red-500"
+                    )}
+                    placeholder="email@example.com"
+                  />
+                  {errors.email && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.email.message}
+                    </p>
+                  )}
+                  {user && !user.isPotential && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Email can only be changed in profile settings
+                    </p>
+                  )}
+                </FormField>
+              )}
             </div>
 
             <FormField label="Role">
@@ -168,6 +228,14 @@ export function UserDialog({
               </FormField>
             </div>
           </div>
+
+          <FormField label="Start Date">
+            <Input
+              type="date"
+              {...register('startDate')}
+              className="[&::-webkit-calendar-picker-indicator]:opacity-100"
+            />
+          </FormField>
 
           <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
             <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">

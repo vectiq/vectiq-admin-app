@@ -11,7 +11,6 @@ import { Users, Briefcase, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useLeaveForecasts } from '@/lib/hooks/useLeaveForecasts';
 import { useBonuses } from '@/lib/hooks/useBonuses';
-import { PotentialStaffDialog } from './PotentialStaffDialog';
 import type { User, Project } from '@/types';
 
 interface UserForecastTableProps {
@@ -34,8 +33,6 @@ export function UserForecastTable({
   onForecastChange
 }: UserForecastTableProps) {
   const [editingCell, setEditingCell] = useState<string | null>(null);
-  const [isAddingStaff, setIsAddingStaff] = useState(false);
-  const [addingStaffType, setAddingStaffType] = useState<'employee' | 'contractor'>('employee');
   const [localData, setLocalData] = useState<Record<string, any>>({});
 
   const { leaveData } = useLeaveForecasts(month);
@@ -44,18 +41,7 @@ export function UserForecastTable({
 
   // Create combined array of regular users and potential staff
   const allUsers = useMemo(() => {
-    const potentialStaff = forecasts
-      .filter(entry => entry.isPotential)
-      .map(entry => ({
-        id: entry.userId,
-        name: entry.name,
-        employeeType: entry.employeeType,
-        hoursPerWeek: entry.hoursPerWeek,
-        isPotential: true,
-        startDate: entry.startDate
-      }));
-
-    return [...users, ...potentialStaff];
+    return users;
   }, [users, forecasts]);
   
   // Get total bonuses for a user in the selected month
@@ -209,71 +195,6 @@ export function UserForecastTable({
   const renderUserTable = (users: User[], title: string, isEmployee: boolean) => {
     if (users.length === 0) return null;
 
-    const handleAddPotentialStaff = () => {
-      setAddingStaffType(isEmployee ? 'employee' : 'contractor');
-      setIsAddingStaff(true);
-    };
-
-    const handleSubmitPotentialStaff = (data: {
-      name: string;
-      employeeType: 'employee' | 'contractor';
-      hoursPerWeek: number;
-      billablePercentage: number;
-      sellRate: number;
-      costRate: number;
-      startDate: string;
-    }) => {
-      if (!onForecastChange) return;
-
-      const userId = crypto.randomUUID();
-      const newEntry = {
-        userId,
-        name: data.name,
-        employeeType: data.employeeType,
-        hoursPerWeek: data.hoursPerWeek,
-        billablePercentage: data.billablePercentage,
-        sellRate: data.sellRate,
-        costRate: data.costRate,
-        plannedBonus: 0,
-        forecastHours: data.hoursPerWeek * (workingDays / 5),
-        plannedLeave: 0,
-        publicHolidays: holidays.length * 8,
-        isPotential: true,
-        startDate: data.startDate
-      };
-
-      // Update local data first
-      setLocalData(prev => ({
-        ...prev,
-        [userId]: {
-          hoursPerWeek: data.hoursPerWeek,
-          billablePercentage: data.billablePercentage,
-          sellRate: data.sellRate,
-          costRate: data.costRate,
-          plannedBonus: 0,
-          forecastHours: data.hoursPerWeek * (workingDays / 5),
-          name: data.name,
-          isPotential: true,
-          startDate: data.startDate
-        }
-      }));
-
-      // Add new entry to users array
-      users.push({
-        id: userId,
-        name: data.name,
-        employeeType: data.employeeType,
-        hoursPerWeek: data.hoursPerWeek,
-        isPotential: true,
-        startDate: data.startDate,
-        ...newEntry
-      });
-
-      // Update parent component
-      const newForecasts = forecasts ? [...forecasts, newEntry] : [newEntry];
-      onForecastChange(newForecasts);
-      setIsAddingStaff(false);
-    };
 
     return (
       <>
@@ -297,15 +218,6 @@ export function UserForecastTable({
               </p>
             </div>
             </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleAddPotentialStaff}
-              disabled={!selectedForecast}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Potential {isEmployee ? 'Employee' : 'Contractor'}
-            </Button>
           </div>
         </div>
 
@@ -341,14 +253,7 @@ export function UserForecastTable({
               return (
                 <tr key={user.id}>
                   <Td className="font-medium">
-                    {user.isPotential ? (
-                      <div className="flex items-center gap-2">
-                        <span>{userData.name}</span>
-                        <Badge variant="warning">Potential</Badge>
-                      </div>
-                    ) : (
-                      user.name
-                    )}
+                    {user.name}
                   </Td>
                   <Td className="text-right p-0">
                     <EditableTimeCell
@@ -453,13 +358,6 @@ export function UserForecastTable({
           </TableBody>
         </Table>
         </Card>
-        <PotentialStaffDialog
-          open={isAddingStaff && addingStaffType === (isEmployee ? 'employee' : 'contractor')}
-          onOpenChange={setIsAddingStaff}
-          onSubmit={handleSubmitPotentialStaff}
-          isEmployee={isEmployee}
-          workingDays={workingDays}
-        />
       </>
     );
   };

@@ -67,10 +67,6 @@ export interface SavedForecast {
     plannedBonus: number;
     plannedLeave: number;
     publicHolidays: number;
-    isPotential?: boolean;
-    startDate?: string;
-    name?: string;
-    employeeType?: 'employee' | 'contractor';
   }>;
 }
 
@@ -207,6 +203,8 @@ export interface User {
   role: 'admin' | 'user';
   overtime: 'no' | 'eligible' | 'all';
   hoursPerWeek: number;
+  startDate?: string;
+  isPotential: boolean;
   teamId?: string;
   xeroEmployeeId?: string;
   salary?: SalaryItem[];

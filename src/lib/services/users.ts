@@ -1,3 +1,4 @@
+import { format } from 'date-fns';
 import {
   collection,
   doc,
@@ -63,50 +64,61 @@ export async function getCurrentUser(): Promise<User | null> {
 }
 
 export async function createUser(data: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> {
-  const auth = getAuth();
-  const idToken = await auth.currentUser.getIdToken(true);
+  // For potential staff, just create Firestore document
+  if (data.isPotential) {
+    const userRef = doc(collection(db, COLLECTION));
+    const user: User = {
+      id: userRef.id,
+      ...data,
+      email: '', // No email for potential staff
+      projectAssignments: [],
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
+
+    await setDoc(userRef, user);
+    return user;
+  }
+
+  // For real users, create auth account and Firestore document
   const functions = getFunctions();
   const tempPassword = generatePassword();
-
-  // Create the user in Firebase Auth
-  var userCredential;
-  const email = data.email;
-
   const createUser = httpsCallable(functions, "createUser");
+  
   try {
-    userCredential = await createUser({ email, tempPassword });
-    console.log("User created successfully:", userCredential.data.uid);
+    const result = await createUser({ email: data.email, tempPassword });
+    const uid = result.data.uid;
+    console.log("User created successfully:", uid);
+
+    // Create the user document in Firestore
+    const userRef = doc(db, COLLECTION, uid);
+    const user: User = {
+      id: uid,
+      ...data,
+      isPotential: data.isPotential || false,
+      startDate: data.startDate || format(new Date(), 'yyyy-MM-dd'),
+      teamId: data.teamId === 'none' ? undefined : data.teamId,
+      projectAssignments: [],
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
+
+    // Remove sell rate if it exists in data
+    if ('sellRate' in user) {
+      delete user.sellRate;
+    }
+
+    await setDoc(userRef, user);
+
+    // Send password reset email
+    const auth = getAuth();
+    await sendPasswordResetEmail(auth, data.email);
+
+    return user;
   } catch (error) {
     console.error("Error creating user:", error.message);
-  }
-
-  // Create the user document in Firestore
-  const userRef = doc(db, COLLECTION, userCredential.data.uid);
-  const user: User = {
-    id: userCredential.data.uid,
-    ...data,
-    teamId: data.teamId === 'none' ? undefined : data.teamId,
-    projectAssignments: [],
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
-  };
-
-  // Remove sell rate if it exists in data
-  if ('sellRate' in user) {
-    delete user.sellRate;
-  }
-
-  try {
-    await setDoc(userRef, user);
-  } catch (error) {
-    console.error("Error setting document:", error.code, error.message);
     throw error;
   }
-
-  // Send password reset email
-  await sendPasswordResetEmail(auth, data.email);
-
-  return user;
 }
 
 async function getSystemConfig(): Promise<SystemConfig> {
@@ -129,6 +141,45 @@ export async function updateUser(id: string, data: Partial<User>): Promise<void>
   }
   
   const user = userDoc.data() as User;
+
+  // Handle converting potential staff to regular staff
+  if (user.isPotential && !data.isPotential && !data.email) {
+    throw new Error('Email is required when converting potential staff to regular staff');
+  }
+
+  // Create Firebase auth user if converting from potential
+  if (user.isPotential && !data.isPotential) {
+    const functions = getFunctions();
+    const tempPassword = generatePassword();
+    const createUser = httpsCallable(functions, "createUser");
+
+    try {
+      const result = await createUser({ email: data.email, tempPassword });
+      const newUid = result.data.uid;
+
+      // Create new user document with auth UID
+      const newUserRef = doc(db, COLLECTION, newUid);
+      await setDoc(newUserRef, {
+        ...user,
+        ...data,
+        id: newUid,
+        isPotential: false,
+        updatedAt: serverTimestamp()
+      });
+
+      // Delete old potential user document
+      await deleteDoc(userRef);
+
+      // Send password reset email
+      const auth = getAuth();
+      await sendPasswordResetEmail(auth, data.email);
+
+      return;
+    } catch (error) {
+      console.error('Error converting potential user:', error);
+      throw new Error('Failed to convert potential user to regular user');
+    }
+  }
   
   // If this is an employee and salary is being updated, recalculate cost rate
   if (user.employeeType === 'employee' && data.salary) {
