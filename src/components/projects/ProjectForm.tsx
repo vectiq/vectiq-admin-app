@@ -3,8 +3,9 @@ import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/Select';
-import { Checkbox } from '@/components/ui/Checkbox';
+import { Switch } from '@/components/ui/Switch';
 import { FormField } from '@/components/ui/FormField';
+import { cn } from '@/lib/utils/styles';
 import { format, parse } from 'date-fns';
 import { useClients } from '@/lib/hooks/useClients';
 import type { Project, ProjectTask } from '@/types';
@@ -91,37 +92,44 @@ export function ProjectForm({ project, onSubmit, onCancel }: ProjectFormProps) {
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-4">
-          <FormField label="Project Name">
-          <Input
-            {...register('name')}
-            placeholder="e.g., Website Redesign"
-          />
+        <div className="grid grid-cols-12 gap-4 items-start">
+          <FormField label="Project Name" className="col-span-9">
+            <Input
+              {...register('name')}
+              placeholder="e.g., Website Redesign"
+            />
           </FormField>
-
-          <FormField label="Client">
-            <Select
-              value={watch('clientId')}
-              onValueChange={(value) => {
-                setValue('clientId', value);
-                // Reset dependent fields
-                setValue('projectId', '');
-                setValue('taskId', '');
-              }}
-            >
-              <SelectTrigger>
-                {watch('clientId') ? clients.find(c => c.id === watch('clientId'))?.name : 'Select Client'}
-              </SelectTrigger>
-              <SelectContent>
-                {clients.map(client => (
-                  <SelectItem key={client.id} value={client.id}>
-                    {client.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FormField>
+          <div className="col-span-3 flex flex-col">
+            <span className="text-sm font-medium mb-2">Active</span>
+            <Switch
+              checked={watch('isActive')}
+              onCheckedChange={(checked) => setValue('isActive', checked)}
+            />
+          </div>
         </div>
+
+        <FormField label="Client">
+          <Select
+            value={watch('clientId')}
+            onValueChange={(value) => {
+              setValue('clientId', value);
+              // Reset dependent fields
+              setValue('projectId', '');
+              setValue('taskId', '');
+            }}
+          >
+            <SelectTrigger>
+              {watch('clientId') ? clients.find(c => c.id === watch('clientId'))?.name : 'Select Client'}
+            </SelectTrigger>
+            <SelectContent>
+              {clients.map(client => (
+                <SelectItem key={client.id} value={client.id}>
+                  {client.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FormField>
 
         <FormField label="Xero Contact ID">
           <Input
@@ -179,21 +187,17 @@ export function ProjectForm({ project, onSubmit, onCancel }: ProjectFormProps) {
           </FormField>
 
           <div className="flex gap-6 items-center mt-8">
-            <Checkbox
-              {...register('requiresApproval')}
-              label="Require approval"
+            <Switch
+              checked={watch('requiresApproval')}
+              onCheckedChange={(checked) => setValue('requiresApproval', checked)}
+              label="Require Approval"
             />
-            <Checkbox
-              {...register('overtimeInclusive')}
-              label="Include overtime"
+            <Switch
+              checked={watch('overtimeInclusive')}
+              onCheckedChange={(checked) => setValue('overtimeInclusive', checked)}
+              label="Include Overtime"
             />
           </div>
-        </div>
-        <div className="flex gap-6 items-center">
-          <Checkbox
-            {...register('isActive')}
-            label="Project is active"
-          />
         </div>
 
       </div>

@@ -1,11 +1,22 @@
 import { format } from 'date-fns';
 import { useState, useEffect } from 'react';
 import { SlidePanel } from '@/components/ui/SlidePanel';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/Tooltip';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/ui/FormField';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/AlertDialog';
 import { Input } from '@/components/ui/Input';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/Select';
-import { Checkbox } from '@/components/ui/Checkbox';
+import { Switch } from '@/components/ui/Switch';
 import { useUsers } from '@/lib/hooks/useUsers';
 import { useTasks } from '@/lib/hooks/useTasks';
 import { useTeams } from '@/lib/hooks/useTeams';
@@ -32,7 +43,6 @@ export function ProjectTasks({
   const { users } = useUsers();
   const { tasks: allTasks } = useTasks();
   const { teams } = useTeams();
-  const [localProject, setLocalProject] = useState<Project | null>(project);
   const [selectedTask, setSelectedTask] = useState('');
   const [editingTaskId, setEditingTaskId] = useState('');
   const [editingTaskData, setEditingTaskData] = useState<{
@@ -46,6 +56,10 @@ export function ProjectTasks({
   } | null>(null);
   const [selectedUser, setSelectedUser] = useState('');
   const [isAddingTask, setIsAddingTask] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; taskId: string | null }>({
+    isOpen: false,
+    taskId: null
+  });
   const [newTaskData, setNewTaskData] = useState({
     name: '',
     sellRates: [{
@@ -57,72 +71,41 @@ export function ProjectTasks({
     xeroLeaveTypeId: ''
   });
 
-  // Update local state when project changes
-  useEffect(() => {
-    setLocalProject(project);
-  }, [project]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedTask || !selectedUser || !localProject) return;
+    if (!selectedTask || !selectedUser || !project) return;
 
     const user = users.find(u => u.id === selectedUser);
     if (!user) return;
 
     await onAssignUser(selectedTask, user.id, user.name);
-    
-    // Update local state after assignment
-    setLocalProject(prev => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        tasks: prev.tasks.map(task => {
-          if (task.id === selectedTask) {
-            return {
-              ...task,
-              userAssignments: [
-                ...(task.userAssignments || []),
-                {
-                  id: crypto.randomUUID(),
-                  userId: user.id,
-                  userName: user.name,
-                  assignedAt: new Date().toISOString()
-                }
-              ]
-            };
-          }
-          return task;
-        })
-      };
-    });
 
     setSelectedUser(''); // Reset user selection after assignment
   };
 
   const handleAddTask = () => {
-    if (!localProject) return;
+    if (!project) return;
 
-    // Parse number values when submitting
     const newTask: ProjectTask = {
       id: crypto.randomUUID(),
       name: newTaskData.name,
-      projectId: localProject.id,
+      isActive: true,
+      projectId: project.id,
       sellRates: [{
         sellRate: parseFloat(newTaskData.sellRates[0].sellRate.toString()) || 0,
         date: newTaskData.sellRates[0].date
       }],
       billable: newTaskData.billable,
       teamId: newTaskData.teamId || undefined,
-      xeroLeaveTypeId: localProject.name === 'Leave' ? newTaskData.xeroLeaveTypeId : '',
+      xeroLeaveTypeId: project.name === 'Leave' ? newTaskData.xeroLeaveTypeId : '',
       userAssignments: []
     };
 
     const updatedProject = {
-      ...localProject,
-      tasks: [...localProject.tasks, newTask]
+      ...project,
+      tasks: [...project.tasks, newTask]
     };
 
-    setLocalProject(updatedProject);
     onUpdateProject(updatedProject);
     setIsAddingTask(false);
     setNewTaskData({
@@ -137,41 +120,46 @@ export function ProjectTasks({
     });
   };
 
-  const handleRemoveTask = (taskId: string) => {
-    if (!localProject) return;
+  const handleRemoveTask = async (taskId: string) => {
+    const task = project?.tasks.find(t => t.id === taskId);
+    if (!task) return;
+    setDeleteConfirmation({ isOpen: true, taskId });
+  };
 
+  const handleConfirmDelete = async () => {
+    if (!project || !deleteConfirmation.taskId) return;
+    const task = project.tasks.find(t => t.id === deleteConfirmation.taskId);
+    if (!task) return;
+
+    // Create updated project with toggled task status
+    // Toggle the task's active status
     const updatedProject = {
-      ...localProject,
-      tasks: localProject.tasks.filter(t => t.id !== taskId)
+      ...project,
+      tasks: project.tasks.map(t => 
+        t.id === deleteConfirmation.taskId 
+          ? { 
+              ...t, 
+              isActive: !t.isActive,
+              // When deactivating a task, also deactivate all assignments
+              userAssignments: !t.isActive 
+                ? t.userAssignments 
+                : t.userAssignments.map(a => ({ ...a, isActive: false }))
+            } 
+          : t
+      )
     };
 
-    setLocalProject(updatedProject);
+    // Update the project immediately
     onUpdateProject(updatedProject);
+    setDeleteConfirmation({ isOpen: false, taskId: null });
   };
 
   const handleRemoveUserFromTask = async (projectId: string, taskId: string, assignmentId: string) => {
     await onRemoveUser(projectId, taskId, assignmentId);
-    
-    // Update local state after removal
-    setLocalProject(prev => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        tasks: prev.tasks.map(task => {
-          if (task.id === taskId) {
-            return {
-              ...task,
-              userAssignments: task.userAssignments?.filter(a => a.id !== assignmentId) || []
-            };
-          }
-          return task;
-        })
-      };
-    });
   };
 
   const handleUpdateTask = (taskId: string, updates: Partial<ProjectTask>) => {
-    if (!localProject) return;
+    if (!project) return;
 
     // Clean and standardize updates
     const parsedUpdates = {
@@ -184,13 +172,12 @@ export function ProjectTasks({
     };
 
     const updatedProject = {
-      ...localProject,
-      tasks: localProject.tasks.map(task => 
+      ...project,
+      tasks: project.tasks.map(task => 
         task.id === taskId ? { ...task, ...parsedUpdates } : task
       )
     };
 
-    setLocalProject(updatedProject);
     onUpdateProject(updatedProject);
     setEditingTaskId('');
     setEditingTaskData(null);
@@ -215,14 +202,14 @@ export function ProjectTasks({
     setEditingTaskData(null);
   };
 
-  if (!localProject) return null;
+  if (!project) return null;
 
   return (
     <SlidePanel
       open={open}
       onClose={() => onOpenChange(false)}
       title="Manage Project Tasks & Assignments"
-      subtitle={localProject.name}
+      subtitle={project.name}
       icon={<Users className="h-5 w-5 text-indigo-500" />}
     >
       <div className="divide-y divide-gray-200">
@@ -251,7 +238,7 @@ export function ProjectTasks({
                 />
               </FormField>
 
-              {localProject.name === 'Leave' && (
+              {project.name === 'Leave' && (
                 <FormField label="Xero Leave Type ID">
                   <Input
                     type="text"
@@ -295,9 +282,9 @@ export function ProjectTasks({
                 </Select>
               </FormField>
 
-              <Checkbox
+              <Switch
                 checked={newTaskData.billable}
-                onChange={(e) => setNewTaskData(prev => ({ ...prev, billable: e.target.checked }))}
+                onCheckedChange={(checked) => setNewTaskData(prev => ({ ...prev, billable: checked }))}
                 label="Billable"
               />
 
@@ -322,17 +309,21 @@ export function ProjectTasks({
 
           {/* Task List */}
           <div className="space-y-4">
-            {localProject.tasks.map(task => (
+            {project.tasks.map(task => (
               <div 
                 key={task.id} 
                 className={`p-4 rounded-lg border ${
                   selectedTask === task.id ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'
-                }`}
+                } ${!task.isActive ? 'opacity-60 bg-gray-50' : ''}`}
+                data-task-id={task.id}
+                data-active={task.isActive}
               >
                 <div className="flex flex-col gap-3 relative">
                   <div className="flex justify-between items-start">
                     <div>
-                      <span className="font-medium text-gray-900">{task.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-900">{task.name}</span>
+                      </div>
                       <div className="text-sm text-gray-500 mt-1">
                         Current Sell Rate: ${task.sellRates?.[0]?.sellRate || 0}/hr
                       </div>
@@ -350,41 +341,72 @@ export function ProjectTasks({
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => {
-                          handleStartEditing(task);
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => {
+                                handleStartEditing(task);
+                              }}
+                              className="p-1.5 text-blue-600"
+                            >
+                              <Edit2 className="h-4 w-4 text-gray-500" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Edit task details
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => {
+                                if (selectedTask === task.id) {
+                                  setSelectedTask('');
+                                } else {
+                                  setSelectedTask(task.id);
+                                  setEditingTaskId('');
+                                }
+                              }}
+                              className="p-1.5 text-indigo-600"
+                            >
+                              <UserPlus className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Manage assignments
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      
+                      <Switch
+                        checked={task.isActive}
+                        onCheckedChange={(checked) => {
+                          const updatedProject = {
+                            ...project,
+                            tasks: project.tasks.map(t => 
+                              t.id === task.id 
+                                ? { 
+                                    ...t, 
+                                    isActive: checked,
+                                    userAssignments: !checked 
+                                      ? t.userAssignments.map(a => ({ ...a, isActive: false }))
+                                      : t.userAssignments
+                                  } 
+                                : t
+                            )
+                          };
+                          onUpdateProject(updatedProject);
                         }}
-                        className="p-1.5 text-blue-600"
-                        title="Edit task details"
-                      >
-                        <Edit2 className="h-4 w-4 text-gray-500" />
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => {
-                          if (selectedTask === task.id) {
-                            setSelectedTask('');
-                          } else {
-                            setSelectedTask(task.id);
-                            setEditingTaskId('');
-                          }
-                        }}
-                        className="p-1.5 text-indigo-600"
-                        title="Manage assignments"
-                      >
-                        <UserPlus className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleRemoveTask(task.id)}
-                        className="p-1.5 text-red-500 hover:text-red-600"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                        label={task.isActive ? 'Active' : 'Inactive'}
+                      />
                     </div>
                   </div>
 
@@ -507,7 +529,7 @@ export function ProjectTasks({
                         </Select>
                       </FormField>
 
-                      {localProject.name === 'Leave' && (
+                      {project.name === 'Leave' && (
                         <FormField label="Xero Leave Type ID">
                           <Input
                             type="text"
@@ -526,11 +548,11 @@ export function ProjectTasks({
                         </FormField>
                       )}
 
-                      <Checkbox
+                      <Switch
                         checked={editingTaskData?.billable}
-                        onChange={(e) => setEditingTaskData(prev => ({
+                        onCheckedChange={(checked) => setEditingTaskData(prev => ({
                           ...prev!,
-                          billable: e.target.checked
+                          billable: checked
                         }))}
                         label="Billable"
                       />
@@ -555,21 +577,23 @@ export function ProjectTasks({
 
                   {selectedTask === task.id && (
                     <div className="flex items-center gap-2 mb-3 relative">
-                      <Select value={selectedUser} onValueChange={setSelectedUser}>
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Select user..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {users
-                            .filter(user => !task.userAssignments?.some(a => a.userId === user.id))
-                            .map(user => (
-                              <SelectItem key={user.id} value={user.id}>
-                                {user.name}
-                              </SelectItem>
-                            ))
-                          }
-                        </SelectContent>
-                      </Select>
+                      <div className="flex-1">
+                        <Select value={selectedUser} onValueChange={setSelectedUser}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select user..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {users
+                              .filter(user => !task.userAssignments?.some(a => a.userId === user.id))
+                              .map(user => (
+                                <SelectItem key={user.id} value={user.id}>
+                                  {user.name}
+                                </SelectItem>
+                              ))
+                            }
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <Button 
                         size="sm"
                         disabled={!selectedUser}
@@ -584,22 +608,44 @@ export function ProjectTasks({
                   {/* User Assignments */}
                   {task.userAssignments && task.userAssignments.length > 0 ? (
                     <div className="space-y-2">
-                      {selectedTask === task.id ? (
-                        // Editable mode with remove buttons
+                      {selectedTask === task.id && task.isActive ? (
+                        // Editable mode with toggle buttons - show all assignments
                         task.userAssignments.map(assignment => (
                           <div 
                             key={assignment.id}
-                            className="flex items-center justify-between bg-white p-2 rounded-md text-sm border border-gray-100"
+                            className={`flex items-center justify-between bg-white p-2 rounded-md text-sm border border-gray-100 ${
+                              !assignment.isActive && 'opacity-60 bg-gray-50'
+                            }`} 
+                            data-assignment-id={assignment.id}
+                            data-active={assignment.isActive}
                           >
-                            <span>{assignment.userName}</span>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => handleRemoveUserFromTask(localProject.id, task.id, assignment.id)}
-                              className="p-1 hover:text-red-500"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <span>{assignment.userName}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={assignment.isActive}
+                                onCheckedChange={(checked) => {
+                                  const updatedProject = {
+                                    ...project,
+                                    tasks: project.tasks.map(t => 
+                                      t.id === task.id 
+                                        ? {
+                                            ...t,
+                                            userAssignments: t.userAssignments.map(a =>
+                                              a.id === assignment.id
+                                                ? { ...a, isActive: checked }
+                                                : a
+                                            )
+                                          }
+                                        : t
+                                    )
+                                  };
+                                  onUpdateProject(updatedProject);
+                                }}
+                                label={assignment.isActive ? 'Active' : 'Inactive'}
+                              />
+                            </div>
                           </div>
                         ))
                       ) : (
@@ -608,9 +654,20 @@ export function ProjectTasks({
                           {task.userAssignments.map(assignment => (
                             <div 
                               key={assignment.id}
-                              className="bg-gray-50 px-2 py-1 rounded text-sm text-gray-700"
+                              className={`px-2 py-1 rounded text-sm transition-all duration-200 ${
+                                assignment.isActive 
+                                  ? 'bg-gray-50 text-gray-700' 
+                                  : 'bg-gray-100 text-gray-500 border border-gray-200'
+                              }`}
                             >
-                              {assignment.userName}
+                              <div className="flex items-center gap-2">
+                                <span>{assignment.userName}</span>
+                                {!assignment.isActive && ( 
+                                  <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded">
+                                    Inactive
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -627,6 +684,37 @@ export function ProjectTasks({
           </div>
         </div>
       </div>
+
+      <AlertDialog 
+        open={deleteConfirmation.isOpen} 
+        onOpenChange={(open) => setDeleteConfirmation(prev => ({ ...prev, isOpen: open }))}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {project?.tasks.find(t => t.id === deleteConfirmation.taskId)?.isActive 
+                ? 'Deactivate Task' 
+                : 'Activate Task'
+              }
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {project?.tasks.find(t => t.id === deleteConfirmation.taskId)?.isActive
+                ? 'Are you sure you want to deactivate this task? Inactive tasks will still be visible but cannot be assigned to new users.'
+                : 'Are you sure you want to activate this task? Active tasks can be assigned to users.'
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete}>
+              {project?.tasks.find(t => t.id === deleteConfirmation.taskId)?.isActive
+                ? 'Deactivate'
+                : 'Activate'
+              }
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SlidePanel>
   );
 }

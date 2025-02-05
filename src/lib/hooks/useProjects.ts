@@ -15,9 +15,11 @@ const QUERY_KEY = 'projects';
 export function useProjects() {
   const queryClient = useQueryClient();
 
-  const query = useQuery({
+  const query = useQuery<Project[]>({
     queryKey: [QUERY_KEY],
-    queryFn: getProjects
+    queryFn: getProjects,
+    staleTime: 0, // Always fetch fresh data
+    refetchOnMount: true // Refetch when component mounts
   });
 
   const createMutation = useMutation({
@@ -30,7 +32,8 @@ export function useProjects() {
   const updateMutation = useMutation({
     mutationFn: (data: Project) => updateProject(data),
     onSuccess: () => {
-      return queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      // Force a refetch instead of just invalidating
+      return queryClient.refetchQueries({ queryKey: [QUERY_KEY] });
     }
   });
 
@@ -47,10 +50,13 @@ export function useProjects() {
 
   const handleUpdateProject = useCallback(async (data: Project) => {
     if (!data.id) throw new Error('Project ID is required for update');
-    return updateMutation.mutateAsync({
+    await updateMutation.mutateAsync({
       ...data,
       tasks: data.tasks || []
     });
+    
+    // Force a refetch after update
+    await queryClient.refetchQueries({ queryKey: [QUERY_KEY] });
   }, [updateMutation]);
 
   const handleDeleteProject = useCallback(async (id: string) => {
@@ -80,9 +86,10 @@ export function useProjects() {
     assignmentId: string
   ) => {
     await removeUserFromTask(projectId, taskId, assignmentId);
-    // Invalidate projects query to refresh the data
-    queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+    // Force a refetch after update
+    await queryClient.refetchQueries({ queryKey: [QUERY_KEY] });
   }, [queryClient]);
+
   return {
     projects: query.data ?? [],
     isLoading: query.isLoading,
@@ -97,4 +104,3 @@ export function useProjects() {
     isDeleting: deleteMutation.isPending,
   };
 }
-                                       

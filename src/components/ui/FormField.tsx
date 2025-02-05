@@ -1,15 +1,17 @@
 import { ReactNode } from 'react';
 import { Label } from '@/components/ui/Label';
+import { cn } from '@/lib/utils/styles';
 
 interface FormFieldProps {
   label: string;
   error?: string;
+  className?: string;
   children: ReactNode;
 }
 
-export function FormField({ label, error, children }: FormFieldProps) {
+export function FormField({ label, error, children, className }: FormFieldProps) {
   return (
-    <div className="space-y-2 form-field">
+    <div className={cn("space-y-2 form-field", className)}>
       <Label>{label}</Label>
       {children}
       {error && (

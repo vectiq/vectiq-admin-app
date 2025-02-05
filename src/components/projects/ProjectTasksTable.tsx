@@ -7,7 +7,7 @@ import { useTeams } from '@/lib/hooks/useTeams';
 import { formatCurrency } from '@/lib/utils/currency';
 import { Plus, X, UserPlus, Edit2 } from 'lucide-react';
 import type { ProjectTask } from '@/types';
-import { useMemo } from 'react';
+import { Switch } from '@/components/ui/Switch';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/Select';
 
 interface ProjectTasksTableProps {
@@ -128,7 +128,6 @@ export function ProjectTasksTable({
                     />
                   </Td>
                   <Td>
-                    <input
                       type="number"
                       min="0"
                       step="0.01"
@@ -167,15 +166,15 @@ export function ProjectTasksTable({
                   </Td>
                   <Td>
                     <input
-                      type="checkbox"
+                    <Switch
                       checked={rate.billable || false}
-                      onChange={(e) => onRateChange(task.id, {
+                      onCheckedChange={(checked) => onRateChange(task.id, {
                         costRate: rate.costRate || 0,
                         sellRate: rate.sellRate || 0,
-                        billable: e.target.checked,
+                        billable: checked,
                         teamId: rate.teamId
                       })}
-                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      label="Billable"
                     />
                   </Td>
                   <Td>{margin}%</Td>

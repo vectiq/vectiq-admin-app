@@ -104,7 +104,7 @@ export async function updateProject(projectData: Project): Promise<void> {
 export async function assignUserToTask(
   projectId: string,
   taskId: string,
-  userId: string,
+  userId: string, 
   userName: string
 ): Promise<void> {
   const projectRef = doc(db, COLLECTION, projectId);
@@ -121,24 +121,11 @@ export async function assignUserToTask(
     throw new Error('Task not found');
   }
   
-  // Initialize userAssignments array if it doesn't exist
-  if (!project.tasks[taskIndex].userAssignments) {
-    project.tasks[taskIndex].userAssignments = [];
-  }
-
-  // Check if user is already assigned
-  const existingAssignment = project.tasks[taskIndex].userAssignments.find(
-    a => a.userId === userId
-  );
-  
-  if (existingAssignment) {
-    return; // User is already assigned to this task
-  }
-
   const assignment = {
     id: crypto.randomUUID(),
     userId,
     userName,
+    isActive: true,
     assignedAt: new Date().toISOString()
   };
   
@@ -186,12 +173,8 @@ export async function removeUserFromTask(
     throw new Error('Task not found');
   }
   
-  if (!project.tasks[taskIndex].userAssignments) {
-    project.tasks[taskIndex].userAssignments = [];
-  }
-
-  project.tasks[taskIndex].userAssignments = project.tasks[taskIndex].userAssignments.filter(
-    a => a.id !== assignmentId
+  project.tasks[taskIndex].userAssignments = project.tasks[taskIndex].userAssignments.map(
+    a => a.id === assignmentId ? { ...a, isActive: !a.isActive } : a
   );
   
   await updateDoc(projectRef, {

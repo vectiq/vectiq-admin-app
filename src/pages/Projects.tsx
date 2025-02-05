@@ -25,11 +25,13 @@ export default function Projects() {
     isDeleting 
   } = useProjects();
   const [includeInactive, setIncludeInactive] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isTasksDialogOpen, setIsTasksDialogOpen] = useState(false);
   const { confirm, dialog, handleClose } = useConfirm();
 
+  // Get selected project from React Query data
+  const selectedProject = projects.find(p => p.id === selectedProjectId);
   // Filter projects based on active status and end date
   const filteredProjects = projects.filter(project => {
     if (includeInactive) return true;
@@ -44,7 +46,7 @@ export default function Projects() {
   );
 
   const handleOpenCreateDialog = useCallback(() => {
-    setSelectedProject(null);
+    setSelectedProjectId(null);
     setIsDialogOpen(true);
   }, []);
 
@@ -58,7 +60,7 @@ export default function Projects() {
   }, [selectedProject, updateProject, createProject]);
 
   const handleEdit = useCallback((project: Project) => {
-    setSelectedProject(project);
+    setSelectedProjectId(project.id);
     setIsDialogOpen(true);
   }, []);
 
@@ -76,7 +78,7 @@ export default function Projects() {
   }, [confirm, deleteProject]);
 
   const handleManageAssignments = useCallback((project: Project) => {
-    setSelectedProject(project);
+    setSelectedProjectId(project.id);
     setIsTasksDialogOpen(true);
   }, []);
 
@@ -121,14 +123,14 @@ export default function Projects() {
       <ProjectDialog
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
-        project={selectedProject}
+        project={selectedProject || null}
         onSubmit={handleSubmit}
       />
       
       <ProjectTasks
         open={isTasksDialogOpen}
         onOpenChange={setIsTasksDialogOpen}
-        project={selectedProject}
+        project={selectedProject || null}
         onAssignUser={assignUserToTask}
         onRemoveUser={(projectId, taskId, assignmentId) => removeUserFromTask(projectId, taskId, assignmentId)}
         onUpdateProject={handleUpdateProjectTasks}

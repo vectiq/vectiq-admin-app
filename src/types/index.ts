@@ -6,6 +6,7 @@ export interface SellRate {
 export interface ProjectTask {
   id: string;
   name: string;
+  isActive: boolean;
   projectId: string;
   sellRates: SellRate[];
   billable: boolean;
@@ -16,11 +17,11 @@ export interface ProjectTask {
     userId: string;
     userName: string;
     assignedAt: string;
+    isActive: boolean;
     plannedBonus: number;
     plannedLeave: number;
     publicHolidays: number;
     isPotential?: boolean;
-    startDate?: string;
     name?: string;
     employeeType?: 'employee' | 'contractor';
   }>;
@@ -112,6 +113,7 @@ export interface UserAssignment {
   id: string;
   userId: string;
   userName: string;
+  isActive: boolean;
   assignedAt: string;
 }
 

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { SlidePanel } from '@/components/ui/SlidePanel';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/ui/FormField';
+import { Switch } from '@/components/ui/Switch';
+import { Input } from '@/components/ui/Input';
 import { useUsers } from '@/lib/hooks/useUsers';
 import { useTasks } from '@/lib/hooks/useTasks';
 import { UserPlus, X, Edit2, Users, Plus } from 'lucide-react';
@@ -146,13 +148,11 @@ export function ProjectAssignmentDialog({
               </div>
 
               <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
+                <Switch
                   checked={newTaskData.billable}
-                  onChange={(e) => setNewTaskData(prev => ({ ...prev, billable: e.target.checked }))}
-                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  onCheckedChange={(checked) => setNewTaskData(prev => ({ ...prev, billable: checked }))}
+                  label="Billable"
                 />
-                <span className="text-sm text-gray-600">Billable</span>
               </div>
 
               <div className="flex justify-end gap-2">
