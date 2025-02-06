@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { format, addMonths, subMonths, startOfMonth, addYears, subYears } from 'date-fns';
 import { MultiMonthForecast } from '@/components/forecast/MultiMonthForecast';
 import { useUsers } from '@/lib/hooks/useUsers';
-import { useProjects } from '@/lib/hooks/useProjects';
+import { useProjects } from '@/lib/hooks/useProjects'; 
 import { useForecasts } from '@/lib/hooks/useForecasts';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { Button } from '@/components/ui/Button';
@@ -50,6 +50,45 @@ export default function Forecast() {
   });
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
+  const currentMonth = format(currentDate, 'yyyy-MM');
+  const workingDays = getWorkingDaysForMonth(currentMonth);
+
+  const { currentUser, managedTeam, isTeamManager } = useUsers();
+  const { projects: allProjects, isLoading: isLoadingProjects } = useProjects();
+  const { users, isLoading: isLoadingUsers } = useUsers();
+  const { holidays } = usePublicHolidays(currentMonth);
+  const { leaveData } = useLeaveForecasts(currentMonth);
+  const { bonuses } = useBonuses(currentMonth);
+
+  // Filter projects and users based on team manager status
+  const projects = useMemo(() => {
+    return allProjects.filter(project => {
+      // Get first day of selected month
+      const selectedDate = new Date(currentMonth + '-01');
+      selectedDate.setHours(0, 0, 0, 0);
+
+      const isActive = project.isActive;
+      const hasEndDate = project.endDate && project.endDate.trim().length === 10;
+      const endDate = hasEndDate ? new Date(project.endDate + 'T23:59:59') : null;
+      const isEndDateValid = endDate ? endDate >= selectedDate : true;
+      
+      // For team managers, only show projects with tasks assigned to their team
+      if (isTeamManager) {
+        const hasTeamTasks = project.tasks.some(task => task.teamId === managedTeam.id);
+        return isActive && (!hasEndDate || isEndDateValid) && hasTeamTasks;
+      }
+      
+      return isActive && (!hasEndDate || isEndDateValid);
+    });
+  }, [allProjects, currentMonth, isTeamManager, managedTeam?.id]);
+
+  // Filter users based on team manager status
+  const filteredUsers = useMemo(() => {
+    if (isTeamManager) {
+      return users.filter(user => user.teamId === managedTeam.id);
+    }
+    return users;
+  }, [users, isTeamManager, managedTeam?.id]);
   // Handle URL params on initial load
   useEffect(() => {
     if (isInitialLoad) {
@@ -79,8 +118,6 @@ export default function Forecast() {
     isOpen: false,
     forecastId: null
   });
-  const currentMonth = format(currentDate, 'yyyy-MM');
-  const workingDays = getWorkingDaysForMonth(currentMonth);
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Get financial year dates
@@ -95,12 +132,6 @@ export default function Forecast() {
   const financialYearEnd = useMemo(() => {
     return new Date(financialYearStart.getFullYear() + 1, 5, 30); // June 30th
   }, [financialYearStart]);
-
-  const { users, isLoading: isLoadingUsers } = useUsers();
-  const { projects: allProjects, isLoading: isLoadingProjects } = useProjects();
-  const { holidays } = usePublicHolidays(currentMonth);
-  const { leaveData } = useLeaveForecasts(currentMonth);
-  const { bonuses } = useBonuses(currentMonth);
 
   const { 
     forecasts: savedForecasts, 
@@ -178,21 +209,6 @@ export default function Forecast() {
     }
   }, [selectedForecastId, savedForecasts]);
 
-  // Filter for active projects only
-  const projects = useMemo(() => {
-    return allProjects.filter(project => {
-      // Get first day of selected month
-      const selectedDate = new Date(currentMonth + '-01');
-      selectedDate.setHours(0, 0, 0, 0);
-
-      const isActive = project.isActive;
-      const hasEndDate = project.endDate && project.endDate.trim().length === 10;
-      const endDate = hasEndDate ? new Date(project.endDate + 'T23:59:59') : null;
-      const isEndDateValid = endDate ? endDate >= selectedDate : true;
-      
-      return isActive && (!hasEndDate || isEndDateValid);
-    });
-  }, [allProjects, currentMonth]);
 
   const handleSaveForecast = async (name: string) => {
     const forecastEntries = users.map(user => {
@@ -268,8 +284,13 @@ export default function Forecast() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between">
-        <div>
+        <div className="space-y-1">
           <h1 className="text-2xl font-semibold text-gray-900">Forecast</h1>
+          {isTeamManager && (
+            <p className="text-sm text-gray-500">
+              Managing forecasts for {managedTeam.name}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <div className="flex rounded-lg shadow-sm">
@@ -374,7 +395,7 @@ export default function Forecast() {
           <WorkingDaysPanel selectedDate={currentDate} />
 
           <UserForecastTable
-            users={users}
+            users={filteredUsers}
             projects={projects}
             forecasts={forecasts}
             selectedForecast={savedForecasts.find(f => f.id === selectedForecastId)}

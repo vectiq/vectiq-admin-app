@@ -3,6 +3,7 @@ import { db } from '@/lib/firebase';
 import { format, parseISO } from 'date-fns';
 import { getWorkingDaysInPeriod } from '@/lib/utils/date';
 import { getFunctions, httpsCallable, HttpsCallableResult } from 'firebase/functions';
+import { useUsers } from '@/lib/hooks/useUsers';
 import type { 
   ReportFilters, 
   ReportData, 
@@ -27,7 +28,7 @@ export async function generateReport(filters: ReportFilters): Promise<ReportData
   );
 
   // Get all required data
-  const [timeEntriesSnapshot, projectsSnapshot, usersSnapshot, clientsSnapshot, approvalsSnapshot] = await Promise.all([
+  let [timeEntriesSnapshot, projectsSnapshot, usersSnapshot, clientsSnapshot, approvalsSnapshot] = await Promise.all([
     getDocs(timeEntriesQuery),
     getDocs(collection(db, 'projects')), 
     getDocs(collection(db, 'users')), 
@@ -40,6 +41,12 @@ export async function generateReport(filters: ReportFilters): Promise<ReportData
   const users = new Map(usersSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() }]));
   const clients = new Map(clientsSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() }]));
   const approvals = approvalsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+  // If teamId filter is present, filter users to only team members
+  if (filters.teamId) {
+    const teamUsers = Array.from(users.values()).filter(user => user.teamId === filters.teamId);
+    users = new Map(teamUsers.map(user => [user.id, user]));
+  }
 
   // Helper function to get cost rate for a specific date
   const getCostRateForDate = (user: User, date: string): number => {

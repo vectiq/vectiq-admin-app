@@ -4,9 +4,12 @@ import { CommandPalette } from '@/components/ui/CommandPalette';
 import { UserMenu } from './UserMenu';
 import { Command } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { useUsers } from '@/lib/hooks/useUsers';
+import { useTeams } from '@/lib/hooks/useTeams';
 
 export function Navbar() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const { managedTeam, isGlobalAdmin } = useUsers();
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -27,11 +30,18 @@ export function Navbar() {
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-4">
-            <img
-              className="hidden md:block h-10 w-auto"
-              src="/logo.svg"
-              alt="Company Logo"
-            />
+            <div className="flex items-center gap-4">
+              <img
+                className="hidden md:block h-10 w-auto"
+                src="/logo.svg"
+                alt="Company Logo"
+              />
+              {managedTeam && !isGlobalAdmin && (
+                <div className="hidden md:block text-lg font-semibold text-gray-900 tracking-tight">
+                  {managedTeam.name}
+                </div>
+              )}
+            </div>
             <MobileNav />
           </div>
           

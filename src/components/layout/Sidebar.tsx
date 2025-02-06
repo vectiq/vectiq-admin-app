@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'; 
 import { navigationItems } from '@/lib/constants/navigation';
 import { useUsers } from '@/lib/hooks/useUsers';
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/Tooltip';
 import { cn } from '@/lib/utils/styles';
 import { ChevronRight } from 'lucide-react';
@@ -13,14 +13,15 @@ interface SidebarProps {
 
 export function Sidebar({ isExpanded, onExpandedChange }: SidebarProps) {
   const location = useLocation();
-  const { currentUser } = useUsers();
+  const { currentUser, isTeamManager } = useUsers();
 
   // Filter navigation items based on user role
   const allowedItems = useMemo(() => 
-    navigationItems.filter(item =>
-      item.roles.includes(currentUser?.role || 'user')
+    navigationItems.filter(item => 
+      item.roles.includes(currentUser?.role || 'user') && 
+      (!isTeamManager || item.allowTeamManager)
     ),
-    [currentUser?.role]
+    [currentUser?.role, isTeamManager]
   );
 
   return (

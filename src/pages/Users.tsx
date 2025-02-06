@@ -28,6 +28,8 @@ export default function Users() {
     createUser, 
     updateUser, 
     deleteUser,
+    isTeamManager,
+    managedTeam
   } = useUsers();
 
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -48,6 +50,11 @@ export default function Users() {
   };
 
   const handleSubmit = async (data: Omit<User, 'id'>) => {
+    // If team manager, force team assignment
+    if (isTeamManager) {
+      data.teamId = managedTeam.id;
+    }
+
     if (selectedUser) {
       await updateUser(selectedUser.id, data);
     } else {
@@ -84,13 +91,22 @@ export default function Users() {
   }
 
   const filteredUsers = showPotentialOnly 
-    ? users.filter(user => user.isPotential)
-    : users;
+    ? users.filter(user => user.isPotential && (!isTeamManager || user.teamId === managedTeam?.id))
+    : isTeamManager
+      ? users.filter(user => user.teamId === managedTeam?.id)
+      : users;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">Staff</h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Staff</h1>
+          {isTeamManager && (
+            <p className="mt-1 text-sm text-gray-500">
+              Managing team: {managedTeam?.name}
+            </p>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <Checkbox

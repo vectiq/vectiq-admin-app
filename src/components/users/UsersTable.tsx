@@ -1,7 +1,9 @@
 import { Edit, Trash2, Calculator } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/Badge'; 
+import { useUsers } from '@/lib/hooks/useUsers';
+import { useTeams } from '@/lib/hooks/useTeams';
 import { formatCurrency } from '@/lib/utils/currency';
 import { useProjects } from '@/lib/hooks/useProjects';
 import { getCostRateForMonth, getAverageSellRate } from '@/lib/utils/rates';
@@ -21,10 +23,12 @@ interface UsersTableProps {
 export function UsersTable({ 
   users, 
   onEdit, 
-  onManageRates,
-  onDelete,
+  onManageRates, 
+  onDelete 
 }: UsersTableProps) {
+  const { teams } = useTeams();
   const { projects } = useProjects();
+  const { isTeamManager, managedTeam } = useUsers();
 
   const processedUsers = useMemo(() => {
     return users.map(user => {
@@ -64,6 +68,17 @@ export function UsersTable({
       <span className="text-gray-500">-</span>
     )
   );
+
+  const teamBodyTemplate = (user: User) => {
+    const team = teams.find(t => t.id === user.teamId);
+    return team ? (
+      <Badge variant={isTeamManager && team.id === managedTeam?.id ? 'warning' : 'secondary'}>
+        {team.name}
+      </Badge>
+    ) : (
+      <span className="text-gray-500">-</span>
+    );
+  };
 
   const costRateBodyTemplate = (user: any) => (
     <span>{formatCurrency(user.costRate)}/hr</span>
@@ -115,6 +130,7 @@ export function UsersTable({
       emptyMessage="No users found"
     >
       <Column field="name" header="Name" body={nameBodyTemplate} sortable />
+      <Column field="teamId" header="Team" body={teamBodyTemplate} sortable />
       <Column field="hoursPerWeek" header="Hours/Week" sortable />
       <Column 
         field="estimatedBillablePercentage" 

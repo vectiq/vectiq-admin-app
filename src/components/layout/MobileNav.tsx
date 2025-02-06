@@ -8,7 +8,7 @@ import { useMemo } from 'react';
 
 export function MobileNav() {
   const location = useLocation();
-  const { currentUser } = useUsers();
+  const { currentUser, isTeamManager } = useUsers();
 
   const handleLinkClick = () => {
     const sheetTrigger = document.querySelector('[data-state="open"]');
@@ -19,10 +19,11 @@ export function MobileNav() {
 
   // Filter navigation items based on user role
   const allowedItems = useMemo(() => 
-    navigationItems.filter(item =>
-      item.roles.includes(currentUser?.role || 'user')
+    navigationItems.filter(item => 
+      item.roles.includes(currentUser?.role || 'user') && 
+      (!isTeamManager || item.allowTeamManager)
     ),
-    [currentUser?.role]
+    [currentUser?.role, isTeamManager]
   );
 
   return (

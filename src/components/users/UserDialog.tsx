@@ -50,7 +50,7 @@ export function UserDialog({
     shouldUnregister: false, // Prevent fields from being unregistered when removed
   });
 
-  const { users } = useUsers();
+  const { users, isTeamManager, managedTeam } = useUsers();
   const { teams } = useTeams();
   const employeeType = watch('employeeType');
   const isPotential = watch('isPotential');
@@ -113,7 +113,7 @@ export function UserDialog({
                   }}
                   label={
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">Potential Staff</span>
+                      <span className="text-sm font-medium">Potential Staff Member</span>
                       {watch('isPotential') && (
                         <Badge variant="warning">Potential</Badge>
                       )}
@@ -246,19 +246,25 @@ export function UserDialog({
             <FormField label="Team">
               <Select 
                 value={watch('teamId') || 'null'} 
+                disabled={isTeamManager}
                 onValueChange={(value) => setValue('teamId', value)}
               >
                 <SelectTrigger>
-                  {watch('teamId') ? teams.find(t => t.id === watch('teamId'))?.name : 'Select Team'}
+                  {isTeamManager 
+                    ? managedTeam.name 
+                    : (watch('teamId') ? teams.find(t => t.id === watch('teamId'))?.name : 'Select Team')
+                  }
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="null">No Team</SelectItem>
-                  {teams.map(team => (
-                    <SelectItem key={team.id} value={team.id}>
-                      {team.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+                {!isTeamManager && (
+                  <SelectContent>
+                    <SelectItem value="null">No Team</SelectItem>
+                    {teams.map(team => (
+                      <SelectItem key={team.id} value={team.id}>
+                        {team.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                )}
               </Select>
             </FormField>
           </div>

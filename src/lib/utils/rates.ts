@@ -39,16 +39,20 @@ export function getCostRateForDate(costRates: CostRate[] | undefined, date: stri
 // Helper function to get cost rate for the first day of a month
 export function getCostRateForMonth(costRates: CostRate[] | undefined, month: string): number {
   if (!costRates || costRates.length === 0) return 0;
-  const now = new Date();
+  if (!Array.isArray(costRates)) return 0;
   
   // Sort rates by date descending
-  const sortedRates = [...costRates].sort((a, b) => 
+  const sortedRates = Array.from(costRates).sort((a, b) => 
     new Date(b.date).getTime() - new Date(a.date).getTime()
   );
   
-  // Find the most recent rate that isn't in the future
+  // Get first day of target month
+  const targetDate = new Date(month + '-01');
+  if (isNaN(targetDate.getTime())) return 0;
+  
+  // Find the most recent rate that isn't after the target month
   const applicableRate = sortedRates.find(rate => 
-    new Date(rate.date) <= now
+    rate && rate.date && new Date(rate.date) <= targetDate
   );
   
   return applicableRate?.costRate || 0;

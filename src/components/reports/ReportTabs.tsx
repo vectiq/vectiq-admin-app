@@ -7,8 +7,7 @@ interface ReportTabsProps {
 
 export function ReportTabs({ activeTab, onTabChange }: ReportTabsProps) {
   const tabs = [
-    { id: 'time', name: 'Time Report' },
-    { id: 'forecast', name: 'Forecast Report' }
+    { id: 'time', name: 'Time Report' }
   ];
 
   return (

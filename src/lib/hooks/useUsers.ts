@@ -2,7 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState, useEffect } from 'react';
 import { updateProfile as updateFirebaseProfile, updateEmail, sendPasswordResetEmail } from 'firebase/auth';
 import { getUsers, getCurrentUser, createUser, updateUser, deleteUser } from '@/lib/services/users';
-import { auth } from '@/lib/firebase';
+import { collection, getDocs } from 'firebase/firestore'; 
+import { auth, db } from '@/lib/firebase';
 import type { User } from '@/types';
 
 const USERS_KEY = 'users';
@@ -68,10 +69,29 @@ export function useUsers() {
     await sendPasswordResetEmail(auth, email);
   }, []);
 
+  // Get teams for team manager check
+  const teamsQuery = useQuery({
+    queryKey: ['teams'],
+    queryFn: async () => {
+      const snapshot = await getDocs(collection(db, 'teams'));
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+  });
+
+  // Determine if current user is a team manager
+  const managedTeam = teamsQuery.data?.find(team => 
+    team.managerId === currentUserQuery.data?.id
+  );
+
+  // A user is a global admin if they have admin role but are not a team manager
+  const isGlobalAdmin = currentUserQuery.data?.role === 'admin' && !managedTeam;
+
   return {
     users: usersQuery.data ?? [],
     currentUser: currentUserQuery.data ?? null,
-    isAdmin: currentUserQuery.data?.role === 'admin',
+    isGlobalAdmin,
+    managedTeam,
+    isTeamManager: !!managedTeam,
     isLoading: usersQuery.isLoading,
     error: usersQuery.error,
     createUser: handleCreateUser,
