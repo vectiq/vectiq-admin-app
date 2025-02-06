@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { InputText } from 'primereact/inputtext';
@@ -15,7 +15,6 @@ import 'primeicons/primeicons.css';
 
 interface ReportTableProps {
   data?: ReportEntry[];
-  approvals?: any[];
 }
 
 const approvalStatuses = [
@@ -26,7 +25,7 @@ const approvalStatuses = [
   'Rejected'
 ];
 
-export function ReportTable({ data = [], approvals = [] }: ReportTableProps) {
+export function ReportTable({ data = [] }: ReportTableProps) {
   const [filters, setFilters] = useState({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS },
     date: { value: null, matchMode: FilterMatchMode.DATE_IS },
@@ -37,6 +36,30 @@ export function ReportTable({ data = [], approvals = [] }: ReportTableProps) {
     approvalStatus: { value: null, matchMode: FilterMatchMode.EQUALS }
   });
   const [globalFilterValue, setGlobalFilterValue] = useState('');
+
+  // Group entries by date and user
+  const groupedData = useMemo(() => {
+    const groups = data.reduce((acc, entry) => {
+      const key = `${entry.date}_${entry.userName}`;
+      if (!acc[key]) {
+        acc[key] = {
+          date: entry.date,
+          userName: entry.userName,
+          entries: [],
+          totalHours: 0,
+          totalCost: 0,
+          totalRevenue: 0
+        };
+      }
+      acc[key].entries.push(entry);
+      acc[key].totalHours += entry.hours;
+      acc[key].totalCost += entry.cost;
+      acc[key].totalRevenue += entry.revenue;
+      return acc;
+    }, {});
+
+    return Object.values(groups);
+  }, [data]);
 
   const dateFilterTemplate = (options: any) => {
     return (
@@ -142,23 +165,23 @@ export function ReportTable({ data = [], approvals = [] }: ReportTableProps) {
         header={renderHeader()}
         emptyMessage="No data found."
         removableSort
-        sortMode="single"
+        sortMode="multiple"
         sortField="date"
         showGridlines
         stripedRows
         className="p-datatable-sm [&_.p-datatable-tbody>tr>td]:transition-none [&_.p-inputtext::placeholder]:font-normal [&_.p-inputtext::placeholder]:text-gray-400"
+        rowGroupMode="subheader"
+        groupRowsBy="date"
+        rowGroupHeaderTemplate={(data) => (
+          <div className="flex items-center justify-between py-2 px-4 bg-gray-50">
+            <div className="font-medium">{formatDate(data.date)}</div>
+            <div className="text-sm text-gray-500">
+              {data.totalHours.toFixed(2)} hours • {formatCurrency(data.totalRevenue)}
+            </div>
+          </div>
+        )}
         tableStyle={{ minWidth: '50rem' }}
       >
-        <Column 
-          field="date" 
-          header="Date" 
-          sortable 
-          filter
-          filterElement={dateFilterTemplate}
-          showFilterMenu={false}
-          body={dateBodyTemplate}
-          style={{ width: '10%' }}
-        />
         <Column 
           field="userName" 
           header="User" 
@@ -235,23 +258,6 @@ export function ReportTable({ data = [], approvals = [] }: ReportTableProps) {
           style={{ width: '8%', textAlign: 'right' }}
         />
       </DataTable>
-
-      {/* Debug Box */}
-      {approvals.length > 0 && (
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-          <h3 className="text-sm font-medium text-gray-900 mb-2">Debug: Approval Records</h3>
-          <div className="space-y-2">
-            {approvals.map(approval => (
-              <div key={approval.id} className="text-sm">
-                <div className="font-medium">{approval.project?.name}</div>
-                <div className="text-gray-500">
-                  Status: {approval.status} • Period: {formatDate(approval.startDate)} - {formatDate(approval.endDate)}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
