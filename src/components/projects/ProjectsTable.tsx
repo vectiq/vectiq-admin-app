@@ -4,8 +4,19 @@ import { Badge } from '@/components/ui/Badge';
 import { formatCurrency } from '@/lib/utils/currency';
 import { formatDate } from '@/lib/utils/date';
 import { DataTable } from 'primereact/datatable';
-import { Column } from 'primereact/column';
+import { Column } from 'primereact/column'; 
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/AlertDialog';
 import type { Project } from '@/types';
+import { useState } from 'react';
 
 interface ProjectsTableProps {
   projects: Project[];
@@ -20,6 +31,22 @@ export function ProjectsTable({
   onDelete,
   onManageAssignments
 }: ProjectsTableProps) {
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; projectId: string | null }>({
+    isOpen: false,
+    projectId: null
+  });
+
+  const handleDelete = (id: string) => {
+    setDeleteConfirmation({ isOpen: true, projectId: id });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteConfirmation.projectId) {
+      await onDelete(deleteConfirmation.projectId);
+      setDeleteConfirmation({ isOpen: false, projectId: null });
+    }
+  };
+
   const nameBodyTemplate = (project: Project) => (
     <div className="font-medium text-gray-900">
       {project.name}
@@ -77,7 +104,7 @@ export function ProjectsTable({
       <Button 
         variant="secondary" 
         size="sm" 
-        onClick={() => onDelete(project.id)}
+        onClick={() => handleDelete(project.id)}
         title="Delete project"
       >
         <Trash2 className="h-4 w-4 text-red-500" />
@@ -86,6 +113,7 @@ export function ProjectsTable({
   );
 
   return (
+    <div>
     <DataTable
       value={projects}
       paginator
@@ -150,5 +178,24 @@ export function ProjectsTable({
         style={{ width: '150px' }}
       />
     </DataTable>
+
+    <AlertDialog 
+      open={deleteConfirmation.isOpen} 
+      onOpenChange={(open) => setDeleteConfirmation(prev => ({ ...prev, isOpen: open }))}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Project</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete this project? This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handleConfirmDelete}>Delete</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </div>
   );
 }

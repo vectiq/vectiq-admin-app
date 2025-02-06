@@ -1,7 +1,8 @@
 import { doc, getDoc, setDoc, collection, getDocs, query, where, writeBatch } from 'firebase/firestore';
+import { serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
-import type { SystemConfig, AdminStats, XeroConfig, FirestoreCollection, XeroPayItem, PublicHoliday } from '@/types';
+import type { SystemConfig, AdminStats, XeroConfig, FirestoreCollection, XeroPayItem, PublicHoliday, TestDataOptions } from '@/types';
 
 const CONFIG_DOC = 'system_config';
 const XERO_CONFIG_DOC = 'xero_config';
@@ -138,6 +139,90 @@ export async function getAdminStats(): Promise<AdminStats> {
     totalBillableHours: billableHours,
     averageUtilization
   };
+}
+
+export async function generateTestData(options: TestDataOptions): Promise<void> {
+  const batch = writeBatch(db);
+  
+  try {
+    // Get all active projects with their assignments
+    const projectsRef = collection(db, 'projects');
+    const projectsSnapshot = await getDocs(projectsRef);
+    const projects = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // Generate time entries for each project assignment
+    for (const project of projects.filter(p => p.isActive)) {
+      // Get client ID for the project
+      const clientId = project.clientId;
+      if (!clientId) continue;
+
+      for (const task of project.tasks || []) {
+        // Skip inactive tasks
+        if (!task.isActive) continue;
+
+        for (const assignment of task.userAssignments || []) {
+          // Skip inactive assignments
+          if (!assignment.isActive) continue; 
+
+          // Generate entries for each day in the range
+          const start = new Date(options.startDate);
+          const end = new Date(options.endDate);
+
+          const now = new Date().toISOString();
+
+          for (let date = start; date <= end; date.setDate(date.getDate() + 1)) {
+            // Skip weekends
+            if (date.getDay() === 0 || date.getDay() === 6) continue;
+
+            // Random hours between 1 and max daily hours
+            const hours = Math.random() * (options.maxDailyHours - 1) + 1;
+            const roundedHours = Math.round(hours * 10) / 10;
+
+            const entryRef = doc(collection(db, 'timeEntries'));
+            batch.set(entryRef, {
+              id: entryRef.id,
+              isTestData: true,
+              hours: roundedHours,
+              taskId: task.id,
+              description: '',
+              clientId: clientId,
+              userId: assignment.userId,
+              projectId: project.id,
+              createdAt: now,
+              date: format(date, 'yyyy-MM-dd'),
+              userId: assignment.userId,
+              updatedAt: now
+            });
+          }
+        }
+      }
+    }
+
+    await batch.commit();
+  } catch (error) {
+    console.error('Error generating test data:', error);
+    throw error;
+  }
+}
+
+export async function clearTestData(): Promise<void> {
+  const batch = writeBatch(db);
+  
+  try {
+    // Delete all time entries
+    const timeEntriesRef = collection(db, 'timeEntries');
+    const q = query(timeEntriesRef, where('isTestData', '==', true));
+    const timeEntriesSnapshot = await getDocs(q);
+    
+    timeEntriesSnapshot.docs.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+  } catch (error) {
+    console.error('Error clearing test data:', error);
+    throw error;
+  }
 }
 
 export async function recalculateProjectTotals(): Promise<void> {

@@ -262,6 +262,8 @@ export default function Forecast() {
   const handlePrevious = () => {
     if (view === 'monthly') {
       setCurrentDate(subMonths(currentDate, 1));
+      setSelectedForecastId(''); // Clear selection to trigger auto-select
+      setIsInitialized(false); // Reset initialization flag for new month
     } else {
       setCurrentDate(subYears(currentDate, 1));
     }
@@ -270,12 +272,18 @@ export default function Forecast() {
   const handleNext = () => {
     if (view === 'monthly') {
       setCurrentDate(addMonths(currentDate, 1));
+      setSelectedForecastId(''); // Clear selection to trigger auto-select
+      setIsInitialized(false); // Reset initialization flag for new month
     } else {
       setCurrentDate(addYears(currentDate, 1));
     }
   };
 
-  const handleToday = () => setCurrentDate(startOfMonth(new Date()));
+  const handleToday = () => {
+    setCurrentDate(startOfMonth(new Date()));
+    setSelectedForecastId(''); // Clear selection to trigger auto-select
+    setIsInitialized(false); // Reset initialization flag for new month
+  };
 
   if (isLoadingUsers || isLoadingProjects || isLoadingForecasts) {
     return <LoadingScreen />;

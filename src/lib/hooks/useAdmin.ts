@@ -12,9 +12,11 @@ import {
   validateTimeEntries,
   getPublicHolidays,
   addPublicHoliday,
-  deletePublicHoliday
+  deletePublicHoliday,
+  generateTestData,
+  clearTestData
 } from '@/lib/services/admin';
-import type { SystemConfig, TestDataOptions } from '@/types';
+import type { SystemConfig, TestDataOptions, XeroConfig } from '@/types';
 
 const QUERY_KEYS = {
   config: 'system-config',
@@ -25,6 +27,7 @@ const QUERY_KEYS = {
 
 export function useAdmin() {
   const queryClient = useQueryClient();
+  const [exportedData, setExportedData] = useState<string | undefined>();
 
   const xeroConfigQuery = useQuery({
     queryKey: [QUERY_KEYS.xeroConfig],
@@ -82,10 +85,17 @@ export function useAdmin() {
     mutationFn: cleanupOrphanedData
   });
 
+  const generateTestDataMutation = useMutation({
+    mutationFn: generateTestData
+  });
+
+  const clearTestDataMutation = useMutation({
+    mutationFn: clearTestData
+  });
+
   const validateMutation = useMutation({
     mutationFn: validateTimeEntries
   });
-  const [exportedData, setExportedData] = useState<string | undefined>();
 
   const exportMutation = useMutation({
     mutationFn: async (collectionName: string) => {
@@ -113,6 +123,8 @@ export function useAdmin() {
     addHoliday: addHolidayMutation.mutateAsync,
     deleteHoliday: deleteHolidayMutation.mutateAsync,
     recalculateProjectTotals: recalculateMutation.mutateAsync,
+    generateTestData: generateTestDataMutation.mutateAsync,
+    clearTestData: clearTestDataMutation.mutateAsync,
     cleanupOrphanedData: cleanupMutation.mutateAsync,
     validateTimeEntries: validateMutation.mutateAsync,
     exportCollection: exportMutation.mutateAsync,
@@ -121,6 +133,8 @@ export function useAdmin() {
     isUpdatingXero: updateXeroConfigMutation.isPending,
     isAddingHoliday: addHolidayMutation.isPending,
     isDeletingHoliday: deleteHolidayMutation.isPending,
+    isGenerating: generateTestDataMutation.isPending,
+    isClearing: clearTestDataMutation.isPending,
     isRecalculating: recalculateMutation.isPending,
     isCleaning: cleanupMutation.isPending,
     isValidating: validateMutation.isPending,
