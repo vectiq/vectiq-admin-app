@@ -4,7 +4,6 @@ import {
   getClients,
   createClient,
   updateClient,
-  deleteClient,
 } from '@/lib/services/clients';
 import type { Client } from '@/types';
 
@@ -32,13 +31,6 @@ export function useClients() {
     }
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: deleteClient,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
-    }
-  });
-
   const handleCreateClient = useCallback(async (data: Omit<Client, 'id'>) => {
     return createMutation.mutateAsync(data);
   }, [createMutation]);
@@ -47,19 +39,13 @@ export function useClients() {
     return updateMutation.mutateAsync(id, data);
   }, [updateMutation]);
 
-  const handleDeleteClient = useCallback(async (id: string) => {
-    return deleteMutation.mutateAsync(id);
-  }, [deleteMutation]);
-
   return {
     clients: query.data ?? [],
     isLoading: query.isLoading,
     error: query.error,
     createClient: handleCreateClient,
     updateClient: handleUpdateClient,
-    deleteClient: handleDeleteClient,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
-    isDeleting: deleteMutation.isPending,
   };
 }

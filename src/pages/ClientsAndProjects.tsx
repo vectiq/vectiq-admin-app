@@ -60,7 +60,6 @@ export default function ClientsAndProjects() {
     isLoading: isLoadingClients,
     createClient,
     updateClient,
-    deleteClient
   } = useClients();
 
   // Get selected project from React Query data
@@ -104,9 +103,7 @@ export default function ClientsAndProjects() {
     if (!deleteConfirmation.id || !deleteConfirmation.type) return;
 
     try {
-      if (deleteConfirmation.type === 'client') {
-        await deleteClient(deleteConfirmation.id);
-      } else {
+      if (deleteConfirmation.type === 'project') {
         await deleteProject(deleteConfirmation.id);
       }
     } catch (error) {
@@ -196,7 +193,6 @@ export default function ClientsAndProjects() {
               setSelectedClient(client);
               setIsClientDialogOpen(true);
             }}
-            onDelete={(id) => handleDelete(id, 'client')}
           />
         )}
       </div>

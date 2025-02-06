@@ -8,6 +8,9 @@ import { formatCurrency } from '@/lib/utils/currency';
 import { formatDate } from '@/lib/utils/date';
 import type { ReportEntry } from '@/types';
 import { FilterMatchMode } from 'primereact/api';
+import { Button } from '@/components/ui/Button';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 import { Calendar } from 'primereact/calendar';
 import 'primereact/resources/themes/lara-light-indigo/theme.css';
 import 'primereact/resources/primereact.min.css';
@@ -15,6 +18,7 @@ import 'primeicons/primeicons.css';
 
 interface ReportTableProps {
   data?: ReportEntry[];
+  onExport?: () => void;
 }
 
 const approvalStatuses = [
@@ -36,29 +40,133 @@ export function ReportTable({ data = [] }: ReportTableProps) {
     approvalStatus: { value: null, matchMode: FilterMatchMode.EQUALS }
   });
   const [globalFilterValue, setGlobalFilterValue] = useState('');
+  const [filteredData, setFilteredData] = useState<ReportEntry[]>(data);
 
-  // Group entries by date and user
-  const groupedData = useMemo(() => {
-    const groups = data.reduce((acc, entry) => {
-      const key = `${entry.date}_${entry.userName}`;
-      if (!acc[key]) {
-        acc[key] = {
-          date: entry.date,
-          userName: entry.userName,
-          entries: [],
-          totalHours: 0,
-          totalCost: 0,
-          totalRevenue: 0
-        };
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    
+    // Add title and company logo
+    // Add title
+    doc.setFontSize(16);
+    doc.text('Time Report', 14, 15);
+    
+    // Add date range and filters
+    doc.setFontSize(12);
+    if (filteredData.length > 0) {
+      const dates = filteredData.map(entry => new Date(entry.date));
+      const startDate = formatDate(Math.min(...dates.map(d => d.getTime())));
+      const endDate = formatDate(Math.max(...dates.map(d => d.getTime())));
+      doc.text(`Period: ${startDate} - ${endDate}`, 14, 25);
+
+      // Add active filters
+      let filterText = '';
+      if (filters.userName?.value) filterText += `User: ${filters.userName.value}, `;
+      if (filters.clientName?.value) filterText += `Client: ${filters.clientName.value}, `;
+      if (filters.projectName?.value) filterText += `Project: ${filters.projectName.value}, `;
+      if (filters.approvalStatus?.value) filterText += `Status: ${filters.approvalStatus.value}`;
+      
+      if (filterText) {
+        doc.setFontSize(10);
+        doc.text(`Filters: ${filterText.replace(/,\s*$/, '')}`, 14, 32);
       }
-      acc[key].entries.push(entry);
-      acc[key].totalHours += entry.hours;
-      acc[key].totalCost += entry.cost;
-      acc[key].totalRevenue += entry.revenue;
-      return acc;
-    }, {});
+    }
 
-    return Object.values(groups);
+    // Calculate and add summary
+    const summary = filteredData.reduce((acc, entry) => ({
+      totalHours: acc.totalHours + entry.hours,
+      totalRevenue: acc.totalRevenue + entry.revenue,
+      totalCost: acc.totalCost + entry.cost,
+      totalProfit: acc.totalProfit + entry.profit
+    }), { totalHours: 0, totalRevenue: 0, totalCost: 0, totalProfit: 0 });
+
+    const summaryY = filterText ? 42 : 35;
+    doc.setFontSize(11);
+    doc.text('Summary', 14, summaryY);
+    doc.setFontSize(10);
+    doc.text(`Total Hours: ${summary.totalHours.toFixed(2)}`, 14, 35);
+    doc.text(`Total Revenue: ${formatCurrency(summary.totalRevenue)}`, 14, 42);
+    doc.text(`Total Cost: ${formatCurrency(summary.totalCost)}`, 14, 49);
+    doc.text(`Total Profit: ${formatCurrency(summary.totalProfit)}`, 14, 56);
+
+    // Add detailed table
+    const tableY = summaryY + 45;
+    (doc as any).autoTable({
+      startY: tableY,
+      head: [[
+        'Date',
+        'User',
+        'Client',
+        'Project',
+        'Task',
+        'Status',
+        'Hours',
+        'Revenue',
+        'Cost',
+        'Profit'
+      ]],
+      body: filteredData.map(entry => [
+        formatDate(entry.date),
+        entry.userName,
+        entry.clientName,
+        entry.projectName,
+        entry.taskName,
+        entry.approvalStatus,
+        entry.hours.toFixed(2),
+        formatCurrency(entry.revenue),
+        formatCurrency(entry.cost),
+        formatCurrency(entry.profit)
+      ]),
+      theme: 'grid',
+      headStyles: { fillColor: [99, 102, 241] },
+      styles: { fontSize: 8 },
+      alternateRowStyles: { fillColor: [245, 247, 251] },
+      columnStyles: {
+        6: { halign: 'right' },
+        7: { halign: 'right' },
+        8: { halign: 'right' },
+        9: { halign: 'right' }
+      },
+      footStyles: { 
+        fillColor: [99, 102, 241],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold'
+      },
+      foot: [[
+        'Total',
+        '',
+        '',
+        '',
+        '',
+        '',
+        summary.totalHours.toFixed(2),
+        formatCurrency(summary.totalRevenue),
+        formatCurrency(summary.totalCost),
+        formatCurrency(summary.totalProfit)
+      ]],
+      didDrawPage: function(data: any) {
+        // Add page number at the bottom
+        const str = `Page ${data.pageCount}`;
+        doc.setFontSize(8);
+        doc.text(str, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 10);
+      }
+    });
+
+    // Save the PDF
+    const fileName = `time-report-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+    doc.save(fileName);
+  };
+
+  // Group entries by date
+  const groupedData = useMemo(() => {
+    return data.reduce((acc, entry) => {
+      const date = entry.date;
+      if (!acc[date]) {
+        acc[date] = { date, totalHours: 0, totalRevenue: 0 };
+      }
+      acc[date].totalHours += entry.hours || 0;
+      acc[date].totalRevenue += entry.revenue || 0;
+      return acc;
+    }, {} as Record<string, { date: string; totalHours: number; totalRevenue: number }>);
   }, [data]);
 
   const dateFilterTemplate = (options: any) => {
@@ -81,10 +189,14 @@ export function ReportTable({ data = [] }: ReportTableProps) {
     setGlobalFilterValue(value);
   };
 
+  const onFilter = (e: any) => {
+    setFilteredData(e.filteredValue || []);
+  };
+
   const renderHeader = () => {
     return (
-      <div className="flex justify-between items-center">
-        <span className="p-input-icon-left">
+      <div className="flex items-center">
+        <div className="p-input-icon-left">
           <i className="pi pi-search" />
           <InputText
             value={globalFilterValue}
@@ -92,7 +204,7 @@ export function ReportTable({ data = [] }: ReportTableProps) {
             placeholder="Search..."
             className="p-2 border rounded-md"
           />
-        </span>
+        </div>
       </div>
     );
   };
@@ -151,10 +263,10 @@ export function ReportTable({ data = [] }: ReportTableProps) {
   };
 
   const rowGroupHeaderTemplate = (data: any) => (
-    <div className="flex items-center justify-between py-2 px-4 bg-gray-50">
-      <div className="font-medium">{data?.date ? formatDate(data.date) : '-'}</div>
-      <div className="text-sm text-gray-500">
-        {data?.totalHours?.toFixed(2) || '0.00'} hours • {formatCurrency(data?.totalRevenue || 0)}
+    <div className="flex items-center justify-between py-2 px-4 bg-gray-50/80">
+      <div className="font-medium">{formatDate(data.date)}</div>
+      <div className="text-sm text-gray-600">
+        {`${groupedData[data.date].totalHours.toFixed(2)} hours • ${formatCurrency(groupedData[data.date].totalRevenue)}`}
       </div>
     </div>
   );
@@ -171,14 +283,16 @@ export function ReportTable({ data = [] }: ReportTableProps) {
         filterDisplay="menu"
         loading={false}
         globalFilterFields={['userName', 'clientName', 'projectName', 'taskName']}
+        sortField="date"
+        sortOrder={1}
         header={renderHeader()}
         emptyMessage="No data found."
         removableSort
-        sortMode="multiple"
-        sortField="date"
+        sortMode="single"
         showGridlines
         stripedRows
         className="p-datatable-sm [&_.p-datatable-tbody>tr>td]:transition-none [&_.p-inputtext::placeholder]:font-normal [&_.p-inputtext::placeholder]:text-gray-400"
+        onFilter={onFilter}
         rowGroupMode="subheader"
         groupRowsBy="date"
         rowGroupHeaderTemplate={rowGroupHeaderTemplate}

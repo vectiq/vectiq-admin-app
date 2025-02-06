@@ -4,7 +4,6 @@ import {
   getDocs, 
   setDoc,
   updateDoc,
-  deleteDoc,
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -39,9 +38,4 @@ export async function updateClient(id: string, clientData: Partial<Client>): Pro
     ...clientData,
     updatedAt: serverTimestamp(),
   });
-}
-
-export async function deleteClient(id: string): Promise<void> {
-  const clientRef = doc(db, COLLECTION, id);
-  await deleteDoc(clientRef);
 }

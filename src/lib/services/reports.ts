@@ -37,15 +37,24 @@ export async function generateReport(filters: ReportFilters): Promise<ReportData
   ]);
 
   // Create lookup maps
-  const projects = new Map(projectsSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() }]));
-  const users = new Map(usersSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() }]));
-  const clients = new Map(clientsSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() }]));
+  let projects = new Map(projectsSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() }]));
+  let users = new Map(usersSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() }]));
+  let clients = new Map(clientsSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() }]));
   const approvals = approvalsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
   // If teamId filter is present, filter users to only team members
   if (filters.teamId) {
     const teamUsers = Array.from(users.values()).filter(user => user.teamId === filters.teamId);
+    const teamUserIds = new Set(teamUsers.map(user => user.id));
     users = new Map(teamUsers.map(user => [user.id, user]));
+
+    // Filter projects to only those with tasks assigned to team members
+    const teamProjects = Array.from(projects.values()).filter(project =>
+      project.tasks?.some(task =>
+        task.userAssignments?.some(assignment => teamUserIds.has(assignment.userId))
+      )
+    );
+    projects = new Map(teamProjects.map(project => [project.id, project]));
   }
 
   // Helper function to get cost rate for a specific date
@@ -82,15 +91,34 @@ export async function generateReport(filters: ReportFilters): Promise<ReportData
       
       if (!project || !projectTask || !client || !user) return null;
 
+      // Get applicable sell rate for the entry date
+      const sellRate = projectTask.billable ? (() => {
+        if (!projectTask.sellRates?.length) return 0;
+        
+        const entryDate = new Date(entry.date);
+        let applicableRate = null;
+        
+        // Find the most recent rate that was active on the entry date
+        for (const rate of projectTask.sellRates) {
+          const rateDate = new Date(rate.date);
+          if (rateDate <= entryDate && (!applicableRate || rateDate > new Date(applicableRate.date))) {
+            applicableRate = rate;
+          }
+        }
+        
+        return applicableRate?.sellRate || 0;
+      })() : 0;
+      
+      // Only include revenue if task is billable
+      const isBillable = projectTask.billable;
+
       // For cost rate, use task's cost rate if available and not 0, otherwise use user's historical cost rate
       const costRate = projectTask?.costRate > 0 ? projectTask.costRate : getCostRateForDate(user, entry.date);
       
-      // For sell rate, use task's sell rate
-      const sellRate = projectTask?.sellRate || 0;
-
       const hours = entry.hours || 0;
       const cost = hours * costRate;
       const revenue = hours * sellRate;
+      const profit = revenue - cost;
 
       // Get approval status
       let approvalStatus = project.requiresApproval 

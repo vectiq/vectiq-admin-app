@@ -5,6 +5,11 @@ import { useTeams } from '@/lib/hooks/useTeams';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/ui/FormField';
+import { formatCurrency } from '@/lib/utils/currency';
+import { formatDate } from '@/lib/utils/date';
+import { format } from 'date-fns';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/Select';
 import { Filter, Download, X } from 'lucide-react';
 import type { ReportFilters } from '@/types';
@@ -12,13 +17,83 @@ import type { ReportFilters } from '@/types';
 interface ReportFiltersProps {
   filters: ReportFilters;
   onChange: (filters: ReportFilters) => void;
+  data?: any;
 }
 
-export function ReportFilters({ filters, onChange }: ReportFiltersProps) {
+export function ReportFilters({ filters, onChange, data }: ReportFiltersProps) {
   const { projects } = useProjects();
   const { users, isTeamManager, managedTeam } = useUsers();
   const { teams } = useTeams();
   const [isExpanded, setIsExpanded] = useState(false);
+
+  const handleExport = () => {
+    if (!data?.entries) return;
+
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(16);
+    doc.text('Time Report', 14, 15);
+    
+    // Add date range and filters
+    doc.setFontSize(12);
+    if (data.entries.length > 0) {
+      const dates = data.entries.map(entry => new Date(entry.date));
+      const startDate = format(Math.min(...dates.map(d => d.getTime())), 'MMM d, yyyy');
+      const endDate = format(Math.max(...dates.map(d => d.getTime())), 'MMM d, yyyy');
+      doc.text(`Period: ${startDate} - ${endDate}`, 14, 25);
+    }
+
+    // Add summary
+    doc.setFontSize(11);
+    doc.text('Summary', 14, 35);
+    doc.setFontSize(10);
+    doc.text(`Total Hours: ${data.summary.totalHours.toFixed(2)}`, 14, 42);
+    doc.text(`Total Revenue: ${formatCurrency(data.summary.totalRevenue)}`, 14, 49);
+    doc.text(`Total Cost: ${formatCurrency(data.summary.totalCost)}`, 14, 56);
+    doc.text(`Total Profit: ${formatCurrency(data.summary.totalRevenue - data.summary.totalCost)}`, 14, 63);
+
+    // Add table
+    (doc as any).autoTable({
+      startY: 75,
+      head: [[
+        'Date',
+        'User',
+        'Client',
+        'Project',
+        'Task',
+        'Status',
+        'Hours',
+        'Revenue',
+        'Cost',
+        'Profit'
+      ]],
+      body: data.entries.map(entry => [
+        formatDate(entry.date),
+        entry.userName,
+        entry.clientName,
+        entry.projectName,
+        entry.taskName,
+        entry.approvalStatus,
+        entry.hours.toFixed(2),
+        formatCurrency(entry.revenue),
+        formatCurrency(entry.cost),
+        formatCurrency(entry.profit)
+      ]),
+      theme: 'grid',
+      headStyles: { fillColor: [99, 102, 241] },
+      styles: { fontSize: 8 },
+      columnStyles: {
+        6: { halign: 'right' },
+        7: { halign: 'right' },
+        8: { halign: 'right' },
+        9: { halign: 'right' }
+      }
+    });
+
+    // Save the PDF
+    doc.save('time-report.pdf');
+  };
 
   const handleChange = (key: keyof ReportFilters, value: any) => {
     let newFilters = { ...filters };
@@ -99,7 +174,7 @@ export function ReportFilters({ filters, onChange }: ReportFiltersProps) {
               </Button>
             )}
 
-            <Button variant="secondary" className="ml-auto">
+            <Button variant="secondary" className="ml-auto" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
