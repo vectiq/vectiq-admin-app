@@ -101,7 +101,7 @@ export default function Processing() {
   }
   
   return (
-    <div className="space-y-6 max-w-[1800px] mx-auto">
+    <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Processing</h1>

@@ -11,8 +11,7 @@ import Welcome from '@/pages/Welcome';
 import Processing from '@/pages/Processing';
 import Forecast from '@/pages/Forecast';
 import Bonuses from '@/pages/Bonuses';
-import Projects from '@/pages/Projects';
-import Clients from '@/pages/Clients';
+import ClientsAndProjects from '@/pages/ClientsAndProjects';
 import Users from '@/pages/Users';
 import Teams from '@/pages/Teams';
 import Admin from '@/pages/Admin';
@@ -101,18 +100,10 @@ export default function App() {
               }
             />
             <Route
-              path="projects"
+              path="clients-and-projects"
               element={
                 <RoleProtectedRoute allowedRoles={['admin']}>
-                  <Projects />
-                </RoleProtectedRoute>
-              }
-            />
-            <Route
-              path="clients"
-              element={
-                <RoleProtectedRoute allowedRoles={['admin']}>
-                  <Clients />
+                  <ClientsAndProjects />
                 </RoleProtectedRoute>
               }
             />

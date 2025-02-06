@@ -35,14 +35,12 @@ export function UsersTable({
       const currentDate = new Date();
       const currentMonth = format(currentDate, 'yyyy-MM');
       const costRate = getCostRateForMonth(user.costRate || [], currentMonth);
-      const sellRate = getAverageSellRate(projects, user.id, currentMonth + '-01');
 
       return {
         ...user,
-        costRate,
-        sellRate
+        costRate
       };
-    });
+    }); 
   }, [users, projects]);
 
   const nameBodyTemplate = (user: User) => (
@@ -82,10 +80,6 @@ export function UsersTable({
 
   const costRateBodyTemplate = (user: any) => (
     <span>{formatCurrency(user.costRate)}/hr</span>
-  );
-
-  const sellRateBodyTemplate = (user: any) => (
-    <span>{formatCurrency(user.sellRate)}/hr</span>
   );
 
   const overtimeBodyTemplate = (user: User) => (
@@ -142,12 +136,6 @@ export function UsersTable({
         field="costRate" 
         header="Cost Rate" 
         body={costRateBodyTemplate}
-        sortable 
-      />
-      <Column 
-        field="sellRate" 
-        header="Sell Rate" 
-        body={sellRateBodyTemplate}
         sortable 
       />
       <Column 

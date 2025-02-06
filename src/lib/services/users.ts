@@ -70,13 +70,19 @@ export async function createUser(data: Omit<User, 'id' | 'createdAt' | 'updatedA
     const user: User = {
       id: userRef.id,
       ...data,
+      teamId: data.teamId === 'none' ? null : data.teamId,
       email: '', // No email for potential staff
       projectAssignments: [],
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
 
-    await setDoc(userRef, user);
+    // Clean up undefined values
+    const cleanUser = Object.fromEntries(
+      Object.entries(user).filter(([_, v]) => v !== undefined)
+    );
+
+    await setDoc(userRef, cleanUser);
     return user;
   }
 
@@ -97,18 +103,18 @@ export async function createUser(data: Omit<User, 'id' | 'createdAt' | 'updatedA
       ...data,
       isPotential: data.isPotential || false,
       startDate: data.startDate || format(new Date(), 'yyyy-MM-dd'),
-      teamId: data.teamId === 'none' ? undefined : data.teamId,
+      teamId: data.teamId === 'none' ? null : data.teamId,
       projectAssignments: [],
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
 
-    // Remove sell rate if it exists in data
-    if ('sellRate' in user) {
-      delete user.sellRate;
-    }
+    // Clean up undefined values
+    const cleanUser = Object.fromEntries(
+      Object.entries(user).filter(([_, v]) => v !== undefined)
+    );
 
-    await setDoc(userRef, user);
+    await setDoc(userRef, cleanUser);
 
     // Send password reset email
     const auth = getAuth();

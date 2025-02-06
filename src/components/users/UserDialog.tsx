@@ -76,6 +76,16 @@ export function UserDialog({
   }, [open, user, reset]);
 
   const handleFormSubmit = async (data: any) => {
+    // Clean up teamId handling
+    if (data.teamId === 'null') {
+      data.teamId = null;
+    }
+
+    // If team manager, force team assignment
+    if (isTeamManager) {
+      data.teamId = managedTeam.id;
+    }
+
     const userData = user ? { ...data, id: user.id } : data;
     await onSubmit(userData);
     onOpenChange(false);

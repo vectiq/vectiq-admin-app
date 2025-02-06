@@ -147,8 +147,17 @@ export function ReportTable({ data = [] }: ReportTableProps) {
   };
 
   const hoursBodyTemplate = (rowData: ReportEntry) => {
-    return rowData.hours.toFixed(2);
+    return rowData?.hours?.toFixed(2) || '0.00';
   };
+
+  const rowGroupHeaderTemplate = (data: any) => (
+    <div className="flex items-center justify-between py-2 px-4 bg-gray-50">
+      <div className="font-medium">{data?.date ? formatDate(data.date) : '-'}</div>
+      <div className="text-sm text-gray-500">
+        {data?.totalHours?.toFixed(2) || '0.00'} hours • {formatCurrency(data?.totalRevenue || 0)}
+      </div>
+    </div>
+  );
 
   return (
     <div>
@@ -172,14 +181,7 @@ export function ReportTable({ data = [] }: ReportTableProps) {
         className="p-datatable-sm [&_.p-datatable-tbody>tr>td]:transition-none [&_.p-inputtext::placeholder]:font-normal [&_.p-inputtext::placeholder]:text-gray-400"
         rowGroupMode="subheader"
         groupRowsBy="date"
-        rowGroupHeaderTemplate={(data) => (
-          <div className="flex items-center justify-between py-2 px-4 bg-gray-50">
-            <div className="font-medium">{formatDate(data.date)}</div>
-            <div className="text-sm text-gray-500">
-              {data.totalHours.toFixed(2)} hours • {formatCurrency(data.totalRevenue)}
-            </div>
-          </div>
-        )}
+        rowGroupHeaderTemplate={rowGroupHeaderTemplate}
         tableStyle={{ minWidth: '50rem' }}
       >
         <Column 
