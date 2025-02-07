@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { generateReport, submitOvertime, checkOvertimeSubmission } from '@/lib/services/reports';
+import { generateReport } from '@/lib/services/reports';
 import type { ReportFilters } from '@/types';
 
 export function useReports(filters: ReportFilters) {
@@ -8,5 +8,3 @@ export function useReports(filters: ReportFilters) {
     queryFn: () => generateReport(filters),
   });
 }
-
-export { submitOvertime, checkOvertimeSubmission };

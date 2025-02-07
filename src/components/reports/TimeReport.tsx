@@ -30,69 +30,34 @@ export function TimeReport({ filters, onFiltersChange }: TimeReportProps) {
         data={data}
       />
       
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-50 rounded-lg">
-              <Clock className="h-5 w-5 text-indigo-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Hours</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {data?.summary.totalHours.toFixed(2)}
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-emerald-50 rounded-lg">
-              <DollarSign className="h-5 w-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {formatCurrency(data?.summary.totalRevenue || 0)}
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-50 rounded-lg">
-              <Calculator className="h-5 w-5 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Cost</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {formatCurrency(data?.summary.totalCost || 0)}
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-50 rounded-lg">
-              <TrendingUp className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Profit Margin</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {data?.summary.profitMargin}%
-              </p>
-            </div>
-          </div>
-        </Card>
-      </div>
+      <ReportSummary data={data} />
+      
 
       {/* Time Entries Table */}
       <Card>
         <div className="p-6">
-          <ReportTable data={data?.entries} />
+          <ReportTable data={data?.entries} onFilter={(filteredData) => {
+            // Recalculate summary based on filtered data
+            const summary = filteredData.reduce((acc, entry) => ({
+              totalHours: acc.totalHours + entry.hours,
+              totalCost: acc.totalCost + entry.cost,
+              totalRevenue: acc.totalRevenue + entry.revenue,
+              profitMargin: 0
+            }), {
+              totalHours: 0,
+              totalCost: 0,
+              totalRevenue: 0,
+              profitMargin: 0
+            });
+            
+            // Calculate profit margin
+            summary.profitMargin = summary.totalRevenue > 0
+              ? Math.round(((summary.totalRevenue - summary.totalCost) / summary.totalRevenue) * 100)
+              : 0;
+
+            // Update data with new summary
+            data.summary = summary;
+          }} />
         </div>
       </Card>
     </div>

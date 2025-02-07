@@ -1,7 +1,6 @@
 import { Card } from '@/components/ui/Card';
-import { useReports } from '@/lib/hooks/useReports';
 import { usePayroll } from '@/lib/hooks/usePayroll';
-import { submitOvertime, checkOvertimeSubmission } from '@/lib/services/reports';
+import { useOvertime } from '@/lib/hooks/useOvertime';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { getWorkingDaysForMonth } from '@/lib/utils/workingDays';
@@ -26,26 +25,24 @@ export function OvertimeReport({ selectedDate }: OvertimeReportProps) {
   const currentMonth = format(selectedDate, 'MM-yyyy');
   const workingDays = getWorkingDaysForMonth(format(selectedDate, 'yyyy-MM'));
   const { payRuns } = usePayroll({ selectedDate });
-  
+  const { data, isLoading, submitOvertime, checkSubmission } = useOvertime({
+    startDate: format(startOfMonth(selectedDate), 'yyyy-MM-dd'),
+    endDate: format(endOfMonth(selectedDate), 'yyyy-MM-dd')
+  });
+
   // Filter to only show draft pay runs
   const draftPayRuns = useMemo(() => 
     payRuns.filter(run => run.PayRunStatus === 'DRAFT'),
     [payRuns]
   );
 
-  const { data, isLoading } = useReports({ 
-    type: 'overtime',
-    startDate: format(startOfMonth(selectedDate), 'yyyy-MM-dd'),
-    endDate: format(endOfMonth(selectedDate), 'yyyy-MM-dd')
-  });
-
   useEffect(() => {
     async function checkSubmission() {
-      const submitted = await checkOvertimeSubmission(currentMonth);
+      const submitted = await checkSubmission(currentMonth);
       setIsSubmitted(submitted);
     }
     checkSubmission();
-  }, [currentMonth]);
+  }, [currentMonth, checkSubmission]);
 
   const handleSubmit = async () => {
     if (!data) return;
@@ -56,7 +53,13 @@ export function OvertimeReport({ selectedDate }: OvertimeReportProps) {
     
     try {
       setIsSubmitting(true);
-      await submitOvertime(data, startDate, endDate, currentMonth, selectedPayRun);
+      await submitOvertime({
+        data,
+        startDate,
+        endDate,
+        month: currentMonth,
+        payRunId: selectedPayRun
+      });
       setIsSubmitted(true);
     } catch (error) {
       console.error('Failed to submit overtime:', error);
