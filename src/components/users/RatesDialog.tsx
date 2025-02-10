@@ -16,7 +16,12 @@ interface RatesDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   user: User;
-  onSave: (updates: { salary?: SalaryItem[]; costRate?: CostRate[] }) => Promise<void>;
+  onSave: (updates: { 
+    salary?: SalaryItem[]; 
+    costRate?: CostRate[];
+    hoursPerWeek?: number;
+    estimatedBillablePercentage?: number;
+  }) => Promise<void>;
 }
 
 export function RatesDialog({
@@ -54,6 +59,10 @@ export function RatesDialog({
   // Initialize history when user changes
   useEffect(() => {
     if (user) {
+      // Ensure cost rate is an array
+      const costRates = Array.isArray(user.costRate) ? user.costRate : 
+        user.costRate ? [user.costRate] : [];
+
       // Initialize billable percentage
       setHoursPerWeek(user.hoursPerWeek || 40);
       setEstimatedBillablePercentage(user?.estimatedBillablePercentage || 0);
@@ -65,7 +74,11 @@ export function RatesDialog({
       ));
       
       // Initialize cost rate history
-      const initialCostRateHistory = Array.isArray(user.costRate) ? user.costRate : [];
+      const initialCostRateHistory = costRates.map(rate => ({
+        costRate: rate.costRate,
+        date: rate.date
+      }));
+
       setCostRateHistory(initialCostRateHistory.sort((a, b) => 
         new Date(b.date).getTime() - new Date(a.date).getTime()
       ));
@@ -151,26 +164,30 @@ export function RatesDialog({
   const handleSave = async () => {
     setIsSubmitting(true);
     try {
-      // Sort histories by date descending to ensure latest entries are first
-      const sortedSalaryHistory = [...salaryHistory].sort((a, b) => 
-        new Date(b.date).getTime() - new Date(a.date).getTime()
-      );
-      const sortedCostRateHistory = [...costRateHistory].sort((a, b) => 
-        new Date(b.date).getTime() - new Date(a.date).getTime()
-      );
-
-      await onSave({
-        salary: sortedSalaryHistory,
-        costRate: sortedCostRateHistory,
+      const updates = {
         hoursPerWeek,
-        estimatedBillablePercentage: estimatedBillablePercentage
-      });
+        estimatedBillablePercentage
+      };
+
+      // Only include salary/cost rate if they exist and have changed
+      if (salaryHistory.length > 0) {
+        updates.salary = [...salaryHistory].sort((a, b) => 
+          new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
+      }
+      if (costRateHistory.length > 0) {
+        updates.costRate = [...costRateHistory].sort((a, b) => 
+          new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
+      }
+
+      await onSave(updates);
       onOpenChange(false);
     } catch (error) {
       console.error('Failed to save rates:', error);
       alert('Failed to save changes');
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false); 
     }
   };
 
@@ -215,7 +232,7 @@ export function RatesDialog({
             <div className="text-sm font-medium text-emerald-600 mb-2">Current Cost Rate</div>
             <div className="flex items-baseline gap-1">
               <span className="text-3xl font-bold text-gray-900">
-                ${costRateHistory[0]?.costRate.toLocaleString() || '0'}
+                ${(costRateHistory[0]?.costRate || 0).toLocaleString()}
               </span>
               <span className="text-sm text-gray-500 ml-1">/hour</span>
             </div>

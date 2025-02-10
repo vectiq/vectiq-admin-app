@@ -238,14 +238,27 @@ export function UserDialog({
               </FormField>
             </div>
           </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Start Date">
+              <Input
+                type="date"
+                {...register('startDate')}
+                className="[&::-webkit-calendar-picker-indicator]:opacity-100"
+              />
+            </FormField>
 
-          <FormField label="Start Date">
-            <Input
-              type="date"
-              {...register('startDate')}
-              className="[&::-webkit-calendar-picker-indicator]:opacity-100"
-            />
-          </FormField>
+            <FormField label="End Date">
+              <Input
+                type="date"
+                {...register('endDate')}
+                className="[&::-webkit-calendar-picker-indicator]:opacity-100"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Optional. Set if leaving.
+              </p>
+            </FormField>
+          </div>
 
           <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
             <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">

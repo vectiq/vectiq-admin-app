@@ -23,7 +23,7 @@ import {
 import { db } from '@/lib/firebase';
 import { generatePassword } from '@/lib/utils/password';
 import { calculateCostRate } from '@/lib/utils/costRate';
-import type { User, ProjectAssignment } from '@/types';
+import type { User, ProjectAssignment, SalaryItem, CostRate } from '@/types';
 
 const COLLECTION = 'users';
 
@@ -149,7 +149,7 @@ export async function updateUser(id: string, data: Partial<User>): Promise<void>
   const user = userDoc.data() as User;
 
   // Handle converting potential staff to regular staff
-  if (user.isPotential && !data.isPotential && !data.email) {
+  if (user.isPotential && data.isPotential == false && !data.email) {
     throw new Error('Email is required when converting potential staff to regular staff');
   }
 
@@ -257,4 +257,60 @@ export async function deleteUser(id: string): Promise<void> {
   // Then delete the Firestore document
   const userRef = doc(db, COLLECTION, id);
   await deleteDoc(userRef);
+}
+
+export async function updateUserRates(id: string, updates: {
+  salary?: SalaryItem[];
+  costRate?: CostRate[];
+  hoursPerWeek?: number;
+  estimatedBillablePercentage?: number;
+}): Promise<void> {
+  const userRef = doc(db, COLLECTION, id);
+  const userDoc = await getDoc(userRef);
+  
+  if (!userDoc.exists()) {
+    throw new Error('User not found');
+  }
+  
+  const user = userDoc.data() as User;
+  
+  // If this is an employee and salary is being updated, recalculate cost rate
+  if (user.employeeType === 'employee' && updates.salary) {
+    try {
+      const config = await getSystemConfig();
+      
+      // Sort salary entries by date
+      const sortedSalary = updates.salary.sort((a, b) => 
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+      
+      // Calculate cost rates for each salary entry
+      const newCostRates = sortedSalary.map(salaryEntry => {
+        const costRate = calculateCostRate(salaryEntry.salary, config);
+        return {
+          costRate,
+          date: salaryEntry.date
+        };
+      });
+      
+      // Update the cost rates in the updates object
+      updates.costRate = newCostRates;
+      
+    } catch (error) {
+      console.error('Error calculating cost rate:', error);
+      throw new Error('Failed to update cost rate');
+    }
+  }
+
+  // Clean up undefined values
+  Object.keys(updates).forEach(key => {
+    if (updates[key] === undefined) {
+      delete updates[key];
+    }
+  });
+
+  await updateDoc(userRef, {
+    ...updates,
+    updatedAt: serverTimestamp()
+  });
 }

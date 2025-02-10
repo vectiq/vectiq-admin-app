@@ -27,6 +27,7 @@ export default function Users() {
     isLoading, 
     createUser, 
     updateUser, 
+    updateRates,
     deleteUser,
     isTeamManager,
     managedTeam
@@ -79,9 +80,14 @@ export default function Users() {
     }
   };
 
-  const handleSaveRates = async (updates: { salary?: SalaryItem[]; costRate?: CostRate[] }) => {
+  const handleSaveRates = async (updates: { 
+    salary?: SalaryItem[]; 
+    costRate?: CostRate[];
+    hoursPerWeek?: number;
+    estimatedBillablePercentage?: number;
+  }) => {
     if (selectedRatesUser) {
-      await updateUser(selectedRatesUser.id, updates);
+      await updateRates(selectedRatesUser.id, updates);
       setSelectedRatesUser(null);
     }
   };

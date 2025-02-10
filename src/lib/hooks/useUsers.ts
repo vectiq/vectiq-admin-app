@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState, useEffect } from 'react';
 import { updateProfile as updateFirebaseProfile, updateEmail, sendPasswordResetEmail } from 'firebase/auth';
-import { getUsers, getCurrentUser, createUser, updateUser, deleteUser } from '@/lib/services/users';
+import { getUsers, getCurrentUser, createUser, updateUser, deleteUser, updateUserRates } from '@/lib/services/users';
 import { collection, getDocs } from 'firebase/firestore'; 
 import { auth, db } from '@/lib/firebase';
-import type { User } from '@/types';
+import type { User, SalaryItem, CostRate } from '@/types';
 
 const USERS_KEY = 'users';
 const CURRENT_USER_KEY = 'currentUser';
@@ -36,6 +36,21 @@ export function useUsers() {
       queryClient.invalidateQueries({ queryKey: [USERS_KEY] });
     }
   });
+  
+  const updateRatesMutation = useMutation({
+    mutationFn: ({ id, updates }: { 
+      id: string; 
+      updates: { 
+        salary?: SalaryItem[]; 
+        costRate?: CostRate[];
+        hoursPerWeek?: number;
+        estimatedBillablePercentage?: number;
+      }
+    }) => updateUserRates(id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [USERS_KEY] });
+    }
+  });
 
   const deleteUserMutation = useMutation({
     mutationFn: deleteUser,
@@ -60,6 +75,15 @@ export function useUsers() {
     }
     return updateUserMutation.mutateAsync({ id, data });
   }, [updateUserMutation]);
+
+  const handleUpdateRates = useCallback(async (id: string, updates: {
+    salary?: SalaryItem[];
+    costRate?: CostRate[];
+    hoursPerWeek?: number;
+    estimatedBillablePercentage?: number;
+  }) => {
+    return updateRatesMutation.mutateAsync({ id, updates });
+  }, [updateRatesMutation]);
 
   const handleDeleteUser = useCallback(async (id: string) => {
     return deleteUserMutation.mutateAsync(id);
@@ -96,9 +120,11 @@ export function useUsers() {
     error: usersQuery.error,
     createUser: handleCreateUser,
     updateUser: handleUpdateUser,
+    updateRates: handleUpdateRates,
     deleteUser: handleDeleteUser,
     isCreating: createUserMutation.isPending,
     isUpdating: updateUserMutation.isPending,
+    isUpdatingRates: updateRatesMutation.isPending,
     isDeleting: deleteUserMutation.isPending,
     sendPasswordReset,
   };

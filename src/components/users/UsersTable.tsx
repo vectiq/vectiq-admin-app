@@ -32,14 +32,7 @@ export function UsersTable({
 
   const processedUsers = useMemo(() => {
     return users.map(user => {
-      const currentDate = new Date();
-      const currentMonth = format(currentDate, 'yyyy-MM');
-      const costRate = getCostRateForMonth(user.costRate || [], currentMonth);
-
-      return {
-        ...user,
-        costRate
-      };
+      return { ...user };
     }); 
   }, [users, projects]);
 
@@ -55,6 +48,12 @@ export function UsersTable({
         )}
       </div>
     </div>
+  );
+
+  const employeeTypeBodyTemplate = (user: User) => (
+    <Badge variant="secondary">
+      {user.employeeType.charAt(0).toUpperCase() + user.employeeType.slice(1)}
+    </Badge>
   );
 
   const billablePercentageBodyTemplate = (user: User) => (
@@ -79,7 +78,22 @@ export function UsersTable({
   };
 
   const costRateBodyTemplate = (user: any) => (
-    <span>{formatCurrency(user.costRate)}/hr</span>
+    <span>{formatCurrency(user.costRate?.[0]?.costRate || 0)}/hr</span>
+  );
+
+  const endDateBodyTemplate = (user: User) => (
+    user.endDate ? (
+      <span className={cn(
+        "px-2 py-1 text-xs font-medium rounded-full",
+        new Date(user.endDate) < new Date() 
+          ? "bg-red-50 text-red-700 ring-1 ring-red-600/10"
+          : "bg-amber-50 text-amber-700 ring-1 ring-amber-600/10"
+      )}>
+        {format(new Date(user.endDate), 'MMM d, yyyy')}
+      </span>
+    ) : (
+      <span className="text-gray-500">-</span>
+    )
   );
 
   const overtimeBodyTemplate = (user: User) => (
@@ -126,6 +140,7 @@ export function UsersTable({
       <Column field="name" header="Name" body={nameBodyTemplate} sortable />
       <Column field="teamId" header="Team" body={teamBodyTemplate} sortable />
       <Column field="hoursPerWeek" header="Hours/Week" sortable />
+      <Column field="employeeType" header="Type" body={employeeTypeBodyTemplate} sortable />
       <Column 
         field="estimatedBillablePercentage" 
         header="Target Billable %" 
@@ -136,12 +151,6 @@ export function UsersTable({
         field="costRate" 
         header="Cost Rate" 
         body={costRateBodyTemplate}
-        sortable 
-      />
-      <Column 
-        field="overtime" 
-        header="Overtime" 
-        body={overtimeBodyTemplate}
         sortable 
       />
       <Column 
