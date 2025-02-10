@@ -8,14 +8,8 @@ import { RoleProtectedRoute } from '@/components/auth/RoleProtectedRoute';
 import { Layout } from '@/components/layout/Layout';
 import Login from '@/pages/Login';
 import Welcome from '@/pages/Welcome';
-import Processing from '@/pages/Processing';
 import Forecast from '@/pages/Forecast';
-import Bonuses from '@/pages/Bonuses';
-import ClientsAndProjects from '@/pages/ClientsAndProjects';
 import Users from '@/pages/Users';
-import Teams from '@/pages/Teams';
-import Admin from '@/pages/Admin';
-import Reports from './pages/Reports';
 
 const queryClient = new QueryClient()
 
@@ -67,30 +61,7 @@ export default function App() {
               index
               element={<Welcome />}
             />
-            <Route
-              path="reports"
-              element={
-                <RoleProtectedRoute allowedRoles={['admin']}>
-                  <Reports />
-                </RoleProtectedRoute>
-              }
-            />
-            <Route
-              path="bonuses"
-              element={
-                <RoleProtectedRoute allowedRoles={['admin']}>
-                  <Bonuses />
-                </RoleProtectedRoute>
-              }
-            />
-            <Route
-              path="processing"
-              element={
-                <RoleProtectedRoute allowedRoles={['admin']}>
-                  <Processing />
-                </RoleProtectedRoute>
-              }
-            />
+            
             <Route
               path="forecast"
               element={
@@ -99,38 +70,7 @@ export default function App() {
                 </RoleProtectedRoute>
               }
             />
-            <Route
-              path="clients-and-projects"
-              element={
-                <RoleProtectedRoute allowedRoles={['admin']}>
-                  <ClientsAndProjects />
-                </RoleProtectedRoute>
-              }
-            />
-            <Route
-              path="users"
-              element={
-                <RoleProtectedRoute allowedRoles={['admin']}>
-                  <Users />
-                </RoleProtectedRoute>
-              }
-            />
-            <Route
-              path="teams"
-              element={
-                <RoleProtectedRoute allowedRoles={['admin']}>
-                  <Teams />
-                </RoleProtectedRoute>
-              }
-            />
-            <Route
-              path="admin"
-              element={
-                <RoleProtectedRoute allowedRoles={['admin']}>
-                  <Admin />
-                </RoleProtectedRoute>
-              }
-            />
+            
           </Route>
 
           {/* Catch all route - must be last */}
