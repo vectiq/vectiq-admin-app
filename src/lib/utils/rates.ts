@@ -64,6 +64,9 @@ export function getAverageSellRate(
   userId: string,
   date: string
 ): number {
+  console.log('Calculating average sell rate for:', { userId, date });
+  console.log('Projects:', projects);
+
   // Get all billable assignments for this user
   const assignments = projects.flatMap(project =>
     project.tasks
@@ -73,6 +76,13 @@ export function getAverageSellRate(
       }))
   );
 
+  console.log('Found assignments:', assignments);
+
+
   const totalRate = assignments.reduce((sum, a) => sum + a.sellRate, 0);
+  const averageRate = assignments.length > 0 ? totalRate / assignments.length : 0;
+
+  console.log('Calculated average rate:', averageRate);
+
   return assignments.length > 0 ? totalRate / assignments.length : 0;
 }

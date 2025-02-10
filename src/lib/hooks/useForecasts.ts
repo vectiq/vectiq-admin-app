@@ -12,31 +12,6 @@ interface UseForecastsOptions {
 export function useForecasts({ month }: UseForecastsOptions) {
   const queryClient = useQueryClient();
 
-  // Function to create default forecast
-  const createDefaultForecast = useCallback(async (entries: SavedForecast['entries']) => {
-    const defaultName = `Default - ${month.substring(5, 7)}/${month.substring(0, 4)}`;
-    
-    try {
-      // Check if default forecast already exists
-      const existingForecasts = await getSavedForecasts(month);
-      const defaultForecast = existingForecasts.find(f => f.name === defaultName);
-      if (defaultForecast) {
-        return defaultForecast;
-      }
-
-      // Create new default forecast
-      const newForecast = await saveForecast(defaultName, month, entries);
-      
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, month] });
-      
-      return newForecast;
-    } catch (error) {
-      console.error('Error creating default forecast:', error);
-      throw error;
-    }
-  }, [month]);
-
   // Query for saved forecasts
   const query = useQuery({
     queryKey: [QUERY_KEY, month],
@@ -88,7 +63,6 @@ export function useForecasts({ month }: UseForecastsOptions) {
   return {
     forecasts: query.data || [],
     isLoading: query.isLoading,
-    createDefaultForecast,
     error: query.error,
     saveForecast: handleSaveForecast,
     updateForecast: handleUpdateForecast,
