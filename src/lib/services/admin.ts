@@ -190,7 +190,6 @@ export async function generateTestData(options: TestDataOptions): Promise<void> 
               projectId: project.id,
               createdAt: now,
               date: format(date, 'yyyy-MM-dd'),
-              userId: assignment.userId,
               updatedAt: now
             });
           }

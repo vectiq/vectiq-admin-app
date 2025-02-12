@@ -25,7 +25,7 @@ export function useClients() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: updateClient,
+    mutationFn:  ({ id, data }: { id: string, data: Client }) => updateClient(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
     }
@@ -36,7 +36,7 @@ export function useClients() {
   }, [createMutation]);
 
   const handleUpdateClient = useCallback(async (id: string, data: Partial<Client>) => {
-    return updateMutation.mutateAsync(id, data);
+    return updateMutation.mutateAsync({id, data});
   }, [updateMutation]);
 
   return {

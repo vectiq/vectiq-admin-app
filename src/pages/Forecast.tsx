@@ -49,6 +49,7 @@ export default function Forecast() {
     endDate: format(addMonths(currentDate, 5), 'yyyy-MM-dd')
   });
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const currentMonth = format(currentDate, 'yyyy-MM');
   const workingDays = getWorkingDaysForMonth(currentMonth);
@@ -114,11 +115,10 @@ export default function Forecast() {
   const [isNewForecastDialogOpen, setIsNewForecastDialogOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [forecasts, setForecasts] = useState<SavedForecast['entries']>([]);
-  const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; forecastId: string | null }>({
-    isOpen: false,
-    forecastId: null
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; clientId: string | null }>({
+        isOpen: false,
+        clientId: null
   });
-  const [isInitialized, setIsInitialized] = useState(false);
 
   // Get financial year dates
   const financialYearStart = useMemo(() => {
@@ -136,7 +136,6 @@ export default function Forecast() {
   const { 
     forecasts: savedForecasts, 
     saveForecast, 
-    createDefaultForecast,
     updateForecast,
     deleteForecast,
     isSaving,
@@ -144,11 +143,22 @@ export default function Forecast() {
     isLoading: isLoadingForecasts 
   } = useForecasts({ month: currentMonth });
 
-  // Create default forecast if none exists
+  // Auto-select default forecast when available
   useEffect(() => {
-    const initializeDefaultForecast = async () => {
-      if (!isLoadingForecasts && !isLoadingUsers && !isLoadingProjects && savedForecasts.length === 0 && !isInitialized) {
-        setIsInitialized(true);
+    if (!isLoadingForecasts && !isLoadingUsers && !isLoadingProjects && !isInitialized) {
+      setIsInitialized(true);
+      
+      if (savedForecasts.length > 0) {
+        const defaultForecast = savedForecasts.find(f => f.name.startsWith('Default -'));
+        if (defaultForecast) {
+          setSelectedForecastId(defaultForecast.id);
+          setForecasts(defaultForecast.entries);
+        } else {
+          setSelectedForecastId(savedForecasts[0].id);
+          setForecasts(savedForecasts[0].entries);
+        }
+        setHasUnsavedChanges(false);
+      } else {
         const defaultEntries = users.map(user => {
           const averageSellRate = getAverageSellRate(projects, user.id, currentMonth + '-01');
           const totalBonuses = bonuses
@@ -171,34 +181,10 @@ export default function Forecast() {
             publicHolidays: holidays.length * 8
           };
         });
-
-        const defaultForecast = await createDefaultForecast(defaultEntries);
-        if (defaultForecast) {
-          setSelectedForecastId(defaultForecast.id);
-          setForecasts(defaultForecast.entries);
-        }
-      }
-    };
-
-    initializeDefaultForecast();
-  }, [currentMonth, isLoadingForecasts, isLoadingUsers, isLoadingProjects, savedForecasts.length, isInitialized]);
-
-  // Reset initialization flag when month changes
-  useEffect(() => {
-    setIsInitialized(false);
-  }, [currentMonth]);
-
-  // Auto-select default forecast when available
-  useEffect(() => {
-    if (!selectedForecastId && savedForecasts.length > 0) {
-      const defaultForecast = savedForecasts.find(f => f.name.startsWith('Default -'));
-      if (defaultForecast) {
-        setSelectedForecastId(defaultForecast.id);
-        setForecasts(defaultForecast.entries);
-        setHasUnsavedChanges(false);
+        setForecasts(defaultEntries);
       }
     }
-  }, [savedForecasts, selectedForecastId]);
+  }, [isLoadingForecasts, isLoadingUsers, isLoadingProjects, isInitialized, savedForecasts, users, projects, currentMonth, bonuses, leaveData, workingDays, holidays]);
 
   // Update forecasts when selected forecast changes
   useEffect(() => {
@@ -211,8 +197,13 @@ export default function Forecast() {
 
 
   const handleSaveForecast = async (name: string) => {
+    console.log('Creating new forecast with projects:', projects);
+
     const forecastEntries = users.map(user => {
+      console.log('Calculating rates for user:', user.name);
       const averageSellRate = getAverageSellRate(projects, user.id, currentMonth + '-01');
+      console.log('Average sell rate calculated:', averageSellRate);
+
       const totalBonuses = bonuses
         .filter(bonus => bonus.employeeId === user.id)
         .reduce((sum, bonus) => sum + bonus.amount, 0);
@@ -405,6 +396,7 @@ export default function Forecast() {
           <UserForecastTable
             users={filteredUsers}
             projects={projects}
+            leaveData={leaveData}
             forecasts={forecasts}
             selectedForecast={savedForecasts.find(f => f.id === selectedForecastId)}
             onForecastChange={(entries) => {
