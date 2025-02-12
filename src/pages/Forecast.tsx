@@ -115,6 +115,10 @@ export default function Forecast() {
   const [isNewForecastDialogOpen, setIsNewForecastDialogOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [forecasts, setForecasts] = useState<SavedForecast['entries']>([]);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; clientId: string | null }>({
+        isOpen: false,
+        clientId: null
+  });
 
   // Get financial year dates
   const financialYearStart = useMemo(() => {
