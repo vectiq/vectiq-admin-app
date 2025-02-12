@@ -20,7 +20,7 @@ import { Switch } from '@/components/ui/Switch';
 import { useUsers } from '@/lib/hooks/useUsers';
 import { useTasks } from '@/lib/hooks/useTasks';
 import { useTeams } from '@/lib/hooks/useTeams';
-import { UserPlus, X, Edit2, Users, Plus } from 'lucide-react';
+import { UserPlus, X, Edit2, Users, Plus, Loader2 } from 'lucide-react';
 import type { Project, ProjectTask } from '@/types';
 
 interface ProjectTasksProps {
@@ -45,6 +45,7 @@ export function ProjectTasks({
   const { teams } = useTeams();
   const [selectedTask, setSelectedTask] = useState('');
   const [editingTaskId, setEditingTaskId] = useState('');
+  const [isAssigning, setIsAssigning] = useState(false);
   const [editingTaskData, setEditingTaskData] = useState<{
     sellRates: Array<{
       sellRate: number;
@@ -74,11 +75,41 @@ export function ProjectTasks({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTask || !selectedUser || !project) return;
+    setIsAssigning(true);
+
+    // Find the task
+    const task = project.tasks.find(t => t.id === selectedTask);
+    if (!task) return;
+    if (!task) {
+      setIsAssigning(false);
+      return;
+    }
+
+    // Check if user is already assigned to this task
+    const isAlreadyAssigned = task.userAssignments?.some(
+      assignment => assignment.userId === selectedUser && assignment.isActive
+    );
+
+    if (isAlreadyAssigned) {
+      setIsAssigning(false);
+      alert('This user is already assigned to this task');
+      return;
+    }
 
     const user = users.find(u => u.id === selectedUser);
-    if (!user) return;
+    if (!user) {
+      setIsAssigning(false);
+      return;
+    }
 
-    await onAssignUser(selectedTask, user.id, user.name);
+    try {
+      await onAssignUser(selectedTask, user.id, user.name);
+    } catch (error) {
+      console.error('Error assigning user:', error);
+      alert('Failed to assign user');
+    } finally {
+      setIsAssigning(false);
+    }
 
     setSelectedUser(''); // Reset user selection after assignment
   };
@@ -578,28 +609,34 @@ export function ProjectTasks({
                   {selectedTask === task.id && (
                     <div className="flex items-center gap-2 mb-3 relative">
                       <div className="flex-1">
-                        <Select value={selectedUser} onValueChange={setSelectedUser}>
+                        <Select
+                          value={selectedUser}
+                          onValueChange={setSelectedUser}
+                        >
                           <SelectTrigger>
                             <SelectValue placeholder="Select user..." />
                           </SelectTrigger>
                           <SelectContent>
                             {users
-                              .filter(user => !task.userAssignments?.some(a => a.userId === user.id))
+                              .filter(user => !task.userAssignments?.some(a => a.userId === user.id && a.isActive))
                               .map(user => (
                                 <SelectItem key={user.id} value={user.id}>
                                   {user.name}
                                 </SelectItem>
-                              ))
-                            }
+                              ))}
                           </SelectContent>
                         </Select>
                       </div>
                       <Button 
                         size="sm"
-                        disabled={!selectedUser}
+                        disabled={!selectedUser || isAssigning}
                         onClick={handleSubmit}
                       >
+                        {isAssigning ? (
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        ) : (
                         <UserPlus className="h-4 w-4 mr-1" />
+                        )}
                         Add
                       </Button>
                     </div>
