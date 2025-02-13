@@ -47,7 +47,7 @@ export default function Forecast() {
   const { users, isLoading: isLoadingUsers } = useUsers();
   const { holidays } = usePublicHolidays(currentMonth);
   const { leaveData } = useLeaveForecasts(currentMonth);
-  const { bonuses } = useBonuses(currentMonth);
+  const { bonuses } = useBonuses(format(currentDate, 'yyyy-MM'));
 
   // Filter projects and users based on team manager status
   const projects = useMemo(() => {
@@ -118,7 +118,7 @@ export default function Forecast() {
   const getDefaultEntries = useCallback(() => {
     return users.map(user => {
       const averageSellRate = getAverageSellRate(projects, user.id, currentMonth + '-01');
-      const totalBonuses = bonuses
+      const userBonuses = bonuses
         .filter(bonus => bonus.employeeId === user.id)
         .reduce((sum, bonus) => sum + bonus.amount, 0);
       const costRate = getCostRateForMonth(user.costRate || [], currentMonth);
@@ -133,7 +133,7 @@ export default function Forecast() {
         forecastHours: (user.hoursPerWeek || 40) * (workingDays / 5),
         sellRate: averageSellRate,
         costRate: costRate,
-        plannedBonus: totalBonuses,
+        plannedBonus: userBonuses,
         plannedLeave: plannedLeave,
         publicHolidays: holidays.length * 8
       };
