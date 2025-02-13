@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { format, startOfMonth, addMonths, subMonths } from 'date-fns';
 import { useBonuses } from '@/lib/hooks/useBonuses';
 import { useUsers } from '@/lib/hooks/useUsers';
+import { useTeams } from '@/lib/hooks/useTeams';
 import { usePayroll } from '@/lib/hooks/usePayroll';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -32,7 +33,6 @@ export default function Bonuses() {
   });
   const [newBonus, setNewBonus] = useState({
     employeeId: '',
-    teamId: '',
     date: format(new Date(), 'yyyy-MM-dd'),
     kpis: '',
     amount: ''
@@ -42,6 +42,7 @@ export default function Bonuses() {
   const { currentUser, managedTeam, isTeamManager } = useUsers();
   const { bonuses, createBonus, processBonuses, isLoading, isCreating, isProcessing, updateBonus, deleteBonus } = useBonuses(currentMonth);
   const { users } = useUsers();
+  const { teams } = useTeams();
   const { payRuns, payItems } = usePayroll({ selectedDate: currentDate });
   
   // Set default pay item when payItems are loaded
@@ -56,15 +57,30 @@ export default function Bonuses() {
 
   // Filter bonuses based on user role and team management status
   const filteredBonuses = bonuses.filter(bonus => {
-    if (!isTeamManager) return true; // Global admin sees all bonuses
-    if (isTeamManager) return bonus.teamId === managedTeam.id; // Team manager sees only their team's bonuses
+    const employee = users.find(u => u.id === bonus.employeeId);
+    if (!employee) return false;
+    
+    if (currentUser?.role === 'admin') {
+      if (isTeamManager) {
+        // Admin who is also team manager only sees their team's bonuses
+        return employee.teamId === managedTeam?.id;
+      }
+      // Regular admin sees all bonuses
+      return true;
+    }
     return false; // Regular users see nothing
   });
 
   // Filter users based on team management status
   const availableUsers = users.filter(user => {
-    if (!isTeamManager) return true; // Global admin sees all users
-    if (isTeamManager) return user.teamId === managedTeam.id; // Team manager sees only their team members
+    if (currentUser?.role === 'admin') {
+      if (isTeamManager) {
+        // Admin who is also team manager only sees their team members
+        return user.teamId === managedTeam?.id;
+      }
+      // Regular admin sees all users
+      return true;
+    }
     return false;
   });
   // Filter to only show draft pay runs
@@ -78,7 +94,6 @@ export default function Bonuses() {
     setEditingBonus(bonus);
     setNewBonus({
       employeeId: bonus.employeeId,
-      teamId: bonus.teamId || '',
       date: format(new Date(bonus.date), 'yyyy-MM-dd'),
       kpis: bonus.kpis || '',
       amount: bonus.amount.toString()
@@ -106,19 +121,18 @@ export default function Bonuses() {
     e.preventDefault();
     if (!newBonus.employeeId || !newBonus.date || !newBonus.amount) return;
 
-    // Set teamId based on user role
-    let teamId = newBonus.teamId;
-    if (isTeamManager) {
-      teamId = managedTeam.id; // Force team manager's team
-    } else if (teamId === 'none') {
-      teamId = undefined;
-    }
+    // Get the employee's team ID
+    const employee = users.find(u => u.id === newBonus.employeeId);
+    if (!employee) return;
+
+    // Use employee's assigned team
+    const teamId = employee.teamId;
 
     try {
       if (editingBonus) {
         await updateBonus(editingBonus.id, {
           employeeId: newBonus.employeeId,
-          teamId,
+          teamId: teamId,
           date: newBonus.date,
           kpis: newBonus.kpis,
           amount: parseFloat(newBonus.amount)
@@ -126,7 +140,7 @@ export default function Bonuses() {
       } else {
         await createBonus({
           employeeId: newBonus.employeeId,
-          teamId,
+          teamId: teamId,
           date: newBonus.date,
           kpis: newBonus.kpis,
           amount: parseFloat(newBonus.amount),
@@ -136,7 +150,6 @@ export default function Bonuses() {
 
       setNewBonus({
         employeeId: '',
-        teamId: '',
         date: format(new Date(), 'yyyy-MM-dd'),
         kpis: '',
         amount: ''
@@ -277,7 +290,13 @@ export default function Bonuses() {
                     )}
                   </Td>
                   <Td className="font-medium">{employee?.name}</Td>
-                  <Td>{isTeamManager ? managedTeam.name : '-'}</Td>
+                  <Td>
+                    {employee?.teamId ? (
+                      <Badge variant="secondary">
+                        {teams.find(t => t.id === employee.teamId)?.name || '-'}
+                      </Badge>
+                    ) : '-'}
+                  </Td>
                   <Td>{format(new Date(bonus.date), 'MMM d, yyyy')}</Td>
                   <Td>{bonus.kpis || '-'}</Td>
                   <Td className="text-right font-medium">{formatCurrency(bonus.amount)}</Td>
@@ -336,34 +355,39 @@ export default function Bonuses() {
             <FormField label="Employee">
               <Select
                 value={newBonus.employeeId}
-                onValueChange={(value) => setNewBonus(prev => ({ ...prev, employeeId: value }))}
+                onValueChange={(value) => {
+                  setNewBonus(prev => ({ ...prev, employeeId: value }));
+                }}
               >
                 <SelectTrigger>
-                  {newBonus.employeeId ? users.find(u => u.id === newBonus.employeeId)?.name : 'Select Employee'}
+                  {newBonus.employeeId ? (
+                    <div className="flex items-center gap-2">
+                      <span>{users.find(u => u.id === newBonus.employeeId)?.name}</span>
+                      {users.find(u => u.id === newBonus.employeeId)?.teamId && (
+                        <Badge variant="secondary" className="ml-2">
+                          {teams.find(t => t.id === users.find(u => u.id === newBonus.employeeId)?.teamId)?.name}
+                        </Badge>
+                      )}
+                    </div>
+                  ) : (
+                    'Select Employee'
+                  )}
                 </SelectTrigger>
                 <SelectContent>
                   {availableUsers.map(user => (
                     <SelectItem key={user.id} value={user.id}>
-                      {user.name}
+                      <div className="flex items-center gap-2">
+                        <span>{user.name}</span>
+                        {user.teamId && (
+                          <Badge variant="secondary" className="ml-2">
+                            {teams.find(t => t.id === user.teamId)?.name}
+                          </Badge>
+                        )}
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </FormField>
-
-            <FormField label="Team (Optional)">
-              <Select
-                value={newBonus.teamId}
-                disabled={isTeamManager} // Team managers can only assign to their team
-                onValueChange={(value) => setNewBonus(prev => ({ ...prev, teamId: value }))}
-              >
-                <SelectTrigger>
-                  {isTeamManager 
-                    ? managedTeam.name 
-                    : 'No Team'
-                  }
-                </SelectTrigger>
-              </Select> 
             </FormField>
 
             <FormField label="Date">
