@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { format, addMonths, subMonths, startOfMonth, addYears, subYears } from 'date-fns';
 import { MultiMonthForecast } from '@/components/forecast/MultiMonthForecast';
 import { useUsers } from '@/lib/hooks/useUsers';
@@ -6,8 +6,6 @@ import { useProjects } from '@/lib/hooks/useProjects';
 import { useForecasts } from '@/lib/hooks/useForecasts';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { Button } from '@/components/ui/Button';
-import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/Select';
-import { SaveForecastDialog } from '@/components/forecast/SaveForecastDialog';
 import { cn } from '@/lib/utils/styles';
 import { UserForecastTable } from '@/components/forecast/UserForecastTable';
 import { WorkingDaysPanel } from '@/components/forecast/WorkingDaysPanel';
@@ -18,17 +16,6 @@ import { useBonuses } from '@/lib/hooks/useBonuses';
 import { useLeaveForecasts } from '@/lib/hooks/useLeaveForecasts';
 import { getWorkingDaysForMonth } from '@/lib/utils/workingDays';
 import { getAverageSellRate, getCostRateForMonth } from '@/lib/utils/rates';
-import { Save, Plus, Trash2 } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogAction,
-  AlertDialogCancel,
-} from '@/components/ui/AlertDialog';
 
 const VIEW_OPTIONS = [
   { id: 'monthly', label: 'Single Month' },
@@ -49,7 +36,8 @@ export default function Forecast() {
     endDate: format(addMonths(currentDate, 5), 'yyyy-MM-dd')
   });
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [forecasts, setForecasts] = useState<any[]>([]);
+  const [initialized, setInitialized] = useState(false);
 
   const currentMonth = format(currentDate, 'yyyy-MM');
   const workingDays = getWorkingDaysForMonth(currentMonth);
@@ -111,14 +99,6 @@ export default function Forecast() {
     }
     window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
   }, [view, currentDate]);
-  const [selectedForecastId, setSelectedForecastId] = useState<string>('');
-  const [isNewForecastDialogOpen, setIsNewForecastDialogOpen] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [forecasts, setForecasts] = useState<SavedForecast['entries']>([]);
-  const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; clientId: string | null }>({
-        isOpen: false,
-        clientId: null
-  });
 
   // Get financial year dates
   const financialYearStart = useMemo(() => {
@@ -133,77 +113,11 @@ export default function Forecast() {
     return new Date(financialYearStart.getFullYear() + 1, 5, 30); // June 30th
   }, [financialYearStart]);
 
-  const { 
-    forecasts: savedForecasts, 
-    saveForecast, 
-    updateForecast,
-    deleteForecast,
-    isSaving,
-    isDeleting,
-    isLoading: isLoadingForecasts 
-  } = useForecasts({ month: currentMonth });
 
-  // Auto-select default forecast when available
-  useEffect(() => {
-    if (!isLoadingForecasts && !isLoadingUsers && !isLoadingProjects && !isInitialized) {
-      setIsInitialized(true);
-      
-      if (savedForecasts.length > 0) {
-        const defaultForecast = savedForecasts.find(f => f.name.startsWith('Default -'));
-        if (defaultForecast) {
-          setSelectedForecastId(defaultForecast.id);
-          setForecasts(defaultForecast.entries);
-        } else {
-          setSelectedForecastId(savedForecasts[0].id);
-          setForecasts(savedForecasts[0].entries);
-        }
-        setHasUnsavedChanges(false);
-      } else {
-        const defaultEntries = users.map(user => {
-          const averageSellRate = getAverageSellRate(projects, user.id, currentMonth + '-01');
-          const totalBonuses = bonuses
-            .filter(bonus => bonus.employeeId === user.id)
-            .reduce((sum, bonus) => sum + bonus.amount, 0);
-          const costRate = getCostRateForMonth(user.costRate || [], currentMonth);
-          const plannedLeave = leaveData?.leave
-            ?.filter(leave => leave.employeeId === user.xeroEmployeeId && leave.status === 'SCHEDULED')
-            ?.reduce((sum, leave) => sum + leave.numberOfUnits, 0) || 0;
-
-          return {
-            userId: user.id,
-            hoursPerWeek: user.hoursPerWeek || 40,
-            billablePercentage: user.estimatedBillablePercentage || 0,
-            forecastHours: (user.hoursPerWeek || 40) * (workingDays / 5),
-            sellRate: averageSellRate,
-            costRate: costRate,
-            plannedBonus: totalBonuses,
-            plannedLeave: plannedLeave,
-            publicHolidays: holidays.length * 8
-          };
-        });
-        setForecasts(defaultEntries);
-      }
-    }
-  }, [isLoadingForecasts, isLoadingUsers, isLoadingProjects, isInitialized, savedForecasts, users, projects, currentMonth, bonuses, leaveData, workingDays, holidays]);
-
-  // Update forecasts when selected forecast changes
-  useEffect(() => {
-    const selectedForecast = savedForecasts.find(f => f.id === selectedForecastId);
-    if (selectedForecast) {
-      setForecasts(selectedForecast.entries);
-      setHasUnsavedChanges(false);
-    }
-  }, [selectedForecastId, savedForecasts]);
-
-
-  const handleSaveForecast = async (name: string) => {
-    console.log('Creating new forecast with projects:', projects);
-
-    const forecastEntries = users.map(user => {
-      console.log('Calculating rates for user:', user.name);
+  // Memoize the default entries calculation
+  const getDefaultEntries = useCallback(() => {
+    return users.map(user => {
       const averageSellRate = getAverageSellRate(projects, user.id, currentMonth + '-01');
-      console.log('Average sell rate calculated:', averageSellRate);
-
       const totalBonuses = bonuses
         .filter(bonus => bonus.employeeId === user.id)
         .reduce((sum, bonus) => sum + bonus.amount, 0);
@@ -224,37 +138,25 @@ export default function Forecast() {
         publicHolidays: holidays.length * 8
       };
     });
+  }, [users, projects, currentMonth, bonuses, leaveData, workingDays, holidays]);
 
-    await saveForecast(name, forecastEntries);
-  };
-
-  const handleSaveCurrentForecast = async () => {
-    if (!selectedForecastId) return;
-    setHasUnsavedChanges(false);
-    const currentForecast = savedForecasts.find(f => f.id === selectedForecastId);
-    if (currentForecast) {
-      await updateForecast(selectedForecastId, currentMonth, currentForecast.name, forecasts);
+  // Initialize forecast data
+  useEffect(() => {
+    if (!isLoadingUsers && !isLoadingProjects && !initialized) {
+      const defaultEntries = getDefaultEntries();
+      setForecasts(defaultEntries);
+      setInitialized(true);
     }
-  };
+  }, [isLoadingUsers, isLoadingProjects, getDefaultEntries, initialized]);
 
-  const handleDeleteForecast = async () => {
-    if (!deleteConfirmation.forecastId) return;
-    
-    try {
-      await deleteForecast(deleteConfirmation.forecastId);
-      setSelectedForecastId('');
-    } catch (error) {
-      console.error('Failed to delete forecast:', error);
-      alert('Failed to delete forecast');
-    }
-    setDeleteConfirmation({ isOpen: false, forecastId: null });
-  };
+  // Reset initialization when month changes
+  useEffect(() => {
+    setInitialized(false);
+  }, [currentMonth]);
 
   const handlePrevious = () => {
     if (view === 'monthly') {
       setCurrentDate(subMonths(currentDate, 1));
-      setSelectedForecastId(''); // Clear selection to trigger auto-select
-      setIsInitialized(false); // Reset initialization flag for new month
     } else {
       setCurrentDate(subYears(currentDate, 1));
     }
@@ -263,8 +165,6 @@ export default function Forecast() {
   const handleNext = () => {
     if (view === 'monthly') {
       setCurrentDate(addMonths(currentDate, 1));
-      setSelectedForecastId(''); // Clear selection to trigger auto-select
-      setIsInitialized(false); // Reset initialization flag for new month
     } else {
       setCurrentDate(addYears(currentDate, 1));
     }
@@ -272,11 +172,9 @@ export default function Forecast() {
 
   const handleToday = () => {
     setCurrentDate(startOfMonth(new Date()));
-    setSelectedForecastId(''); // Clear selection to trigger auto-select
-    setIsInitialized(false); // Reset initialization flag for new month
   };
 
-  if (isLoadingUsers || isLoadingProjects || isLoadingForecasts) {
+  if (isLoadingUsers || isLoadingProjects) {
     return <LoadingScreen />;
   }
 
@@ -320,65 +218,6 @@ export default function Forecast() {
               onToday={handleToday}
               formatString="MMMM yyyy"
             />
-            <div className="flex items-center gap-3">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setIsNewForecastDialogOpen(true)}
-                className="p-1.5"
-                title="Create New Forecast"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-
-              <Select
-                value={selectedForecastId}
-                onValueChange={setSelectedForecastId}
-              >
-                <SelectTrigger className="w-[250px]">
-                  {selectedForecastId ? 
-                    savedForecasts.find(f => f.id === selectedForecastId)?.name : 
-                    'Select Saved Forecast'}
-                </SelectTrigger>
-                <SelectContent>
-                  {savedForecasts.map(forecast => (
-                    <SelectItem key={forecast.id} value={forecast.id}>
-                      {forecast.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={!selectedForecastId || !hasUnsavedChanges}
-                className="p-1.5"
-                title="Save Current Forecast"
-                onClick={handleSaveCurrentForecast}
-              >
-                <Save className="h-4 w-4" />
-                {hasUnsavedChanges && (
-                  <span className="absolute -top-1 -right-1 h-2 w-2 bg-amber-500 rounded-full" />
-                )}
-              </Button>
-
-              {selectedForecastId && (
-                <Button
-                  variant="secondary"
-                  disabled={savedForecasts.find(f => f.id === selectedForecastId)?.name.startsWith('Default -')}
-                  size="sm"
-                  className="p-1.5 text-red-500 hover:text-red-600"
-                  title="Delete Current Forecast"
-                  onClick={() => setDeleteConfirmation({ 
-                    isOpen: true, 
-                    forecastId: selectedForecastId 
-                  })}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
           </div>
 
           <ForecastSummaryCard
@@ -397,13 +236,9 @@ export default function Forecast() {
             users={filteredUsers}
             projects={projects}
             leaveData={leaveData}
-            forecasts={forecasts}
-            selectedForecast={savedForecasts.find(f => f.id === selectedForecastId)}
+            forecasts={forecasts} 
             onForecastChange={(entries) => {
-              if (selectedForecastId) {
-                setForecasts(entries);
-                setHasUnsavedChanges(true);
-              }
+              setForecasts(entries);
             }}
             month={currentMonth}
             workingDays={workingDays}
@@ -416,36 +251,6 @@ export default function Forecast() {
           onDateRangeChange={setDateRange}
         />
       )}
-
-      <SaveForecastDialog
-        open={isNewForecastDialogOpen}
-        onOpenChange={setIsNewForecastDialogOpen}
-        onSave={handleSaveForecast}
-        isLoading={isSaving}
-      />
-      
-      <AlertDialog 
-        open={deleteConfirmation.isOpen} 
-        onOpenChange={(open) => setDeleteConfirmation(prev => ({ ...prev, isOpen: open }))}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Forecast</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this forecast? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteForecast}
-              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
