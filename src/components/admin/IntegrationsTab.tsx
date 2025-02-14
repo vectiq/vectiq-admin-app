@@ -29,6 +29,7 @@ const XERO_SCOPES = [
   { value: 'accounting.contacts.read', category: 'Accounting', description: 'Read contacts' },
   { value: 'accounting.attachments', category: 'Accounting', description: 'Read and write attachments' },
   { value: 'accounting.attachments.read', category: 'Accounting', description: 'Read attachments' },
+  { value: 'accounting.reports.read', category: 'Accounting', description: 'Read reports' },
   // Payroll API
   { value: 'payroll.employees', category: 'Payroll', description: 'Read and write employee data' },
   { value: 'payroll.employees.read', category: 'Payroll', description: 'Read employee data' },
