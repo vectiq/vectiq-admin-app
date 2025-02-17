@@ -33,6 +33,7 @@ export function TeamDialog({
     defaultValues: team || {
       name: '',
       managerId: '',
+      xeroTrackingCategoryId: '',
     },
   });
 
@@ -82,6 +83,16 @@ export function TeamDialog({
                 ))}
               </SelectContent>
             </Select>
+          </FormField>
+
+          <FormField label="Xero Tracking Option ID">
+            <Input
+              {...register('xeroTrackingCategoryId')}
+              placeholder="e.g., 00000000-0000-0000-0000-000000000000"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              The Xero tracking option ID used for reporting
+            </p>
           </FormField>
 
           <div className="flex justify-end gap-3 pt-6">

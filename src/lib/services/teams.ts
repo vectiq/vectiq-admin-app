@@ -25,6 +25,7 @@ export async function createTeam(teamData: Omit<Team, 'id' | 'createdAt' | 'upda
   const team: Team = {
     id: teamRef.id,
     ...teamData,
+    xeroTrackingCategoryId: teamData.xeroTrackingCategoryId || null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

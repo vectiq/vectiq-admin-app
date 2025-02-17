@@ -133,6 +133,20 @@ export function IntegrationsTab({
               </p>
             </FormField>
 
+            <FormField label="Business Unit Tracking Category ID">
+              <Input
+                value={xeroConfig?.businessUnitTrackingCategoryId || ''}
+                onChange={(e) => onUpdateXeroConfig({
+                  ...xeroConfig,
+                  businessUnitTrackingCategoryId: e.target.value
+                })}
+                placeholder="e.g., 00000000-0000-0000-0000-000000000000"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                The Xero tracking category ID used for business unit tracking
+              </p>
+            </FormField>
+
             <FormField label="Ordinary Hours Earnings ID">
               <Select
                 value={xeroConfig?.ordinaryHoursEarningsId || ''}

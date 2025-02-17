@@ -19,6 +19,7 @@ export function TeamsTable({ teams, onEdit, onDelete }: TeamsTableProps) {
         <tr>
           <Th>Team Name</Th>
           <Th>Manager</Th>
+          <Th>Xero Tracking Option</Th>
           <Th className="text-right">Actions</Th>
         </tr>
       </TableHeader>
@@ -30,6 +31,7 @@ export function TeamsTable({ teams, onEdit, onDelete }: TeamsTableProps) {
             <tr key={team.id}>
               <Td className="font-medium text-gray-900">{team.name}</Td>
               <Td>{manager?.name || 'No manager assigned'}</Td>
+              <Td>{team.xeroTrackingCategoryId || '-'}</Td>
               <Td className="text-right">
                 <div className="flex justify-end gap-2">
                   <Button variant="secondary" size="sm" onClick={() => onEdit(team)}>
