@@ -1,6 +1,8 @@
 import { useMemo, useState, useEffect } from 'react';
 import { EmployeeForecastTable } from './EmployeeForecastTable';
 import { ContractorForecastTable } from './ContractorForecastTable';
+import { useForecasts } from '@/lib/hooks/useForecasts';
+import { useUsers } from '@/lib/hooks/useUsers';
 import { useLeaveForecasts } from '@/lib/hooks/useLeaveForecasts';
 import { usePublicHolidays } from '@/lib/hooks/usePublicHolidays';
 import { useBonuses } from '@/lib/hooks/useBonuses';
@@ -13,7 +15,6 @@ interface UserForecastTableProps {
   forecasts: any[];
   month: string;
   workingDays: number;
-  selectedForecast?: any;
   onForecastChange?: (changes: any) => void;
 }
 
@@ -23,15 +24,21 @@ export function UserForecastTable({
   forecasts,
   month,
   workingDays,
-  selectedForecast,
   onForecastChange
 }: UserForecastTableProps) {
   const [localData, setLocalData] = useState<Record<string, any>>({});
+  const { currentUser } = useUsers();
+  const { saveDelta, deltas } = useForecasts({
+    userId: currentUser?.id,
+    month
+  });
   const { leaveData } = useLeaveForecasts(month);
   const { holidays } = usePublicHolidays(month);
   const { bonuses } = useBonuses(month);
   const [initialized, setInitialized] = useState(false);
 
+  // Track which cells have been modified from their dynamic values
+  const [modifiedCells, setModifiedCells] = useState<Set<string>>(new Set());
   // Separate users by type
   const { employees, contractors } = useMemo(() => {
     return users.reduce((acc, user) => {
@@ -104,10 +111,55 @@ export function UserForecastTable({
         };
       }
     });
+    // Apply saved forecast deltas if they exist
+    if (deltas) {
+      Object.entries(deltas).forEach(([field, delta]) => {
+        if (newLocalData[field]) {
+          Object.entries(delta).forEach(([key, value]) => {
+            if (key !== 'updatedAt' && key !== 'dynamicValue') {
+            }
+          }
+          )
+        }
+      }
+      )
+      Object.entries(deltas).forEach(([key, override]) => {
+        if (key === 'id' || key === 'updatedAt' || !override) return;
+
+        // Extract userId and field from the key (e.g., "userId_hoursPerWeek")
+        const parts = key.split('_');
+        if (parts.length !== 2) return;
+
+        const [userId, field] = parts;
+        if (newLocalData[userId] && override && typeof override === 'object' && 'value' in override) {
+          newLocalData[userId][field] = override.value;
+          setModifiedCells(prev => new Set([...prev, key]));
+        }
+      });
+    }
 
     setLocalData(newLocalData);
     setInitialized(true);
   }, [forecasts, month, workingDays, users, projects, bonuses]);
+
+  // Separate effect for applying deltas
+  useEffect(() => {
+    if (!deltas || !initialized) return;
+
+    setLocalData(prevData => {
+      const newData = { ...prevData };
+      Object.entries(deltas).forEach(([key, override]) => {
+        if (key === 'id' || key === 'updatedAt' || !override) return;
+
+        const [userId, field] = key.split('_');
+        if (newData[userId] && override && typeof override === 'object' && 'value' in override) {
+          newData[userId][field] = override.value;
+          setModifiedCells(prev => new Set([...prev, key]));
+        }
+      });
+      return newData;
+    });
+  }, [deltas, initialized]);
 
   // Reset initialization when key dependencies change
   useEffect(() => {
@@ -144,6 +196,40 @@ export function UserForecastTable({
     }
 
     setLocalData(newData);
+    // Mark cell as modified
+    setModifiedCells(prev => new Set(prev).add(`${userId}_${field}`));
+    
+    // Get the dynamic value for this field
+    const user = users.find(u => u.id === userId);
+    let dynamicValue = 0;
+    
+    if (user) {
+      switch (field) {
+        case 'hoursPerWeek':
+          dynamicValue = user.hoursPerWeek || 40;
+          break;
+        case 'billablePercentage':
+          dynamicValue = user.estimatedBillablePercentage || 0;
+          break;
+        case 'sellRate':
+          dynamicValue = getAverageSellRate(projects, user.id, month + '-01');
+          break;
+        case 'costRate':
+          dynamicValue = getCostRateForMonth(user.costRate || [], month);
+          break;
+        case 'forecastHours':
+          dynamicValue = (user.hoursPerWeek || 40) * (workingDays / 5);
+          break;
+        case 'plannedBonus':
+          dynamicValue = bonuses
+            .filter(bonus => bonus.employeeId === user.id)
+            .reduce((sum, bonus) => sum + bonus.amount, 0);
+          break;
+      }
+    }
+
+    // Save or clear the override
+    saveDelta(month, field, value === dynamicValue ? null : value, user.id);
     
     if (onForecastChange) {
       const entries = users.map(user => {
@@ -176,14 +262,14 @@ export function UserForecastTable({
         holidays={holidays}
         leaveData={leaveData}
         month={month}
-        selectedForecast={selectedForecast}
+        modifiedCells={modifiedCells}
         onCellChange={handleCellChange}
       />
       <ContractorForecastTable
         users={contractors}
         localData={localData}
         holidays={holidays}
-        selectedForecast={selectedForecast}
+        modifiedCells={modifiedCells}
         onCellChange={handleCellChange}
       />
     </div>

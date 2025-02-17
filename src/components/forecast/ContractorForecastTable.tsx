@@ -10,7 +10,7 @@ interface ContractorForecastTableProps {
   users: User[];
   localData: Record<string, any>;
   holidays: any[];
-  selectedForecast?: any;
+  modifiedCells: Set<string>;
   onCellChange: (userId: string, field: string, value: number) => void;
 }
 
@@ -18,7 +18,7 @@ export function ContractorForecastTable({
   users,
   localData,
   holidays,
-  selectedForecast,
+  modifiedCells,
   onCellChange
 }: ContractorForecastTableProps) {
   const [editingCell, setEditingCell] = useState<string | null>(null);
@@ -78,7 +78,7 @@ export function ContractorForecastTable({
                     value={userData.hoursPerWeek}
                     onChange={(value) => onCellChange(user.id, 'hoursPerWeek', value)}
                     isEditing={editingCell === `${user.id}-hoursPerWeek`}
-                    isDisabled={!selectedForecast}
+                    isModified={modifiedCells.has(`${user.id}_hoursPerWeek`)}
                     onStartEdit={() => setEditingCell(`${user.id}-hoursPerWeek`)}
                     onEndEdit={() => setEditingCell(null)}
                   />
@@ -89,7 +89,7 @@ export function ContractorForecastTable({
                     value={userData.billablePercentage}
                     onChange={(value) => onCellChange(user.id, 'billablePercentage', value)}
                     isEditing={editingCell === `${user.id}-billable`}
-                    isDisabled={!selectedForecast}
+                    isModified={modifiedCells.has(`${user.id}_billablePercentage`)}
                     onStartEdit={() => setEditingCell(`${user.id}-billable`)}
                     onEndEdit={() => setEditingCell(null)}
                   />
@@ -100,7 +100,7 @@ export function ContractorForecastTable({
                     value={userData.sellRate}
                     onChange={(value) => onCellChange(user.id, 'sellRate', value)}
                     isEditing={editingCell === `${user.id}-sellRate`}
-                    isDisabled={!selectedForecast}
+                    isModified={modifiedCells.has(`${user.id}_sellRate`)}
                     onStartEdit={() => setEditingCell(`${user.id}-sellRate`)}
                     onEndEdit={() => setEditingCell(null)}
                   />
@@ -111,7 +111,7 @@ export function ContractorForecastTable({
                     value={userData.costRate}
                     onChange={(value) => onCellChange(user.id, 'costRate', value)}
                     isEditing={editingCell === `${user.id}-costRate`}
-                    isDisabled={!selectedForecast}
+                    isModified={modifiedCells.has(`${user.id}_costRate`)}
                     onStartEdit={() => setEditingCell(`${user.id}-costRate`)}
                     onEndEdit={() => setEditingCell(null)}
                   />
@@ -127,7 +127,7 @@ export function ContractorForecastTable({
                     value={adjustedForecastHours}
                     onChange={(value) => onCellChange(user.id, 'forecastHours', value)}
                     isEditing={editingCell === `${user.id}-forecast`}
-                    isDisabled={!selectedForecast}
+                    isModified={modifiedCells.has(`${user.id}_forecastHours`)}
                     onStartEdit={() => setEditingCell(`${user.id}-forecast`)}
                     onEndEdit={() => setEditingCell(null)}
                   />

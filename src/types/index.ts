@@ -10,6 +10,11 @@ export interface ReportFilters {
   teamId?: string;
 }
 
+export interface ForecastOverride {
+  value: number;
+  updatedAt: string;
+}
+
 export interface Team {
   id: string;
   name: string;

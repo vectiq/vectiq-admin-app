@@ -13,7 +13,7 @@ interface EmployeeForecastTableProps {
   holidays: any[];
   leaveData: any;
   month: string;
-  selectedForecast?: any;
+  modifiedCells: Set<string>;
   onCellChange: (userId: string, field: string, value: number) => void;
 }
 
@@ -23,7 +23,7 @@ export function EmployeeForecastTable({
   holidays,
   leaveData,
   month,
-  selectedForecast,
+  modifiedCells,
   onCellChange
 }: EmployeeForecastTableProps) {
   const [editingCell, setEditingCell] = useState<string | null>(null);
@@ -82,7 +82,7 @@ export function EmployeeForecastTable({
                     value={userData.hoursPerWeek}
                     onChange={(value) => onCellChange(user.id, 'hoursPerWeek', value)}
                     isEditing={editingCell === `${user.id}-hoursPerWeek`}
-                    isDisabled={!selectedForecast}
+                    isModified={modifiedCells.has(`${user.id}_hoursPerWeek`)}
                     onStartEdit={() => setEditingCell(`${user.id}-hoursPerWeek`)}
                     onEndEdit={() => setEditingCell(null)}
                   />
@@ -93,7 +93,7 @@ export function EmployeeForecastTable({
                     value={userData.billablePercentage}
                     onChange={(value) => onCellChange(user.id, 'billablePercentage', value)}
                     isEditing={editingCell === `${user.id}-billable`}
-                    isDisabled={!selectedForecast}
+                    isModified={modifiedCells.has(`${user.id}_billablePercentage`)}
                     onStartEdit={() => setEditingCell(`${user.id}-billable`)}
                     onEndEdit={() => setEditingCell(null)}
                   />
@@ -104,7 +104,7 @@ export function EmployeeForecastTable({
                     value={userData.sellRate}
                     onChange={(value) => onCellChange(user.id, 'sellRate', value)}
                     isEditing={editingCell === `${user.id}-sellRate`}
-                    isDisabled={!selectedForecast}
+                    isModified={modifiedCells.has(`${user.id}_sellRate`)}
                     onStartEdit={() => setEditingCell(`${user.id}-sellRate`)}
                     onEndEdit={() => setEditingCell(null)}
                   />
@@ -115,7 +115,7 @@ export function EmployeeForecastTable({
                     value={userData.costRate}
                     onChange={(value) => onCellChange(user.id, 'costRate', value)}
                     isEditing={editingCell === `${user.id}-costRate`}
-                    isDisabled={!selectedForecast}
+                    isModified={modifiedCells.has(`${user.id}_costRate`)}
                     onStartEdit={() => setEditingCell(`${user.id}-costRate`)}
                     onEndEdit={() => setEditingCell(null)}
                   />
@@ -161,7 +161,7 @@ export function EmployeeForecastTable({
                     value={userData.plannedBonus}
                     onChange={(value) => onCellChange(user.id, 'plannedBonus', value)}
                     isEditing={editingCell === `${user.id}-bonus`}
-                    isDisabled={!selectedForecast}
+                    isModified={modifiedCells.has(`${user.id}_plannedBonus`)}
                     onStartEdit={() => setEditingCell(`${user.id}-bonus`)}
                     onEndEdit={() => setEditingCell(null)}
                   />
@@ -172,7 +172,7 @@ export function EmployeeForecastTable({
                     value={userData.forecastHours}
                     onChange={(value) => onCellChange(user.id, 'forecastHours', value)}
                     isEditing={editingCell === `${user.id}-forecast`}
-                    isDisabled={!selectedForecast}
+                    isModified={modifiedCells.has(`${user.id}_forecastHours`)}
                     onStartEdit={() => setEditingCell(`${user.id}-forecast`)}
                     onEndEdit={() => setEditingCell(null)}
                   />
