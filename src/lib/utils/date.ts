@@ -1,5 +1,14 @@
 import { format, parseISO, eachDayOfInterval, isWeekend } from 'date-fns';
 
+export const hasProjectElapsed = (project: { endDate?: string }) => {
+  const hasEndDate = project.endDate && project.endDate.trim() !== '';
+  if (!hasEndDate) return false;
+  
+  const endDate = new Date(project.endDate);
+  return endDate < new Date();
+};
+
+
 export const formatDate = (date: string | Date) => {
   if (!date) return '';
   const dateObj = typeof date === 'string' ? parseISO(date) : date;

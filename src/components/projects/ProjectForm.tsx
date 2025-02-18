@@ -100,11 +100,16 @@ export function ProjectForm({ project, onSubmit, onCancel }: ProjectFormProps) {
             />
           </FormField>
           <div className="col-span-3 flex flex-col">
-            <span className="text-sm font-medium mb-2">Active</span>
-            <Switch
-              checked={watch('isActive')}
-              onCheckedChange={(checked) => setValue('isActive', checked)}
-            />
+            <span className="text-sm font-medium mb-2">Status</span>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={watch('isActive')}
+                disabled={true}
+              />
+              <span className="text-sm text-gray-500">
+                {watch('isActive') ? 'Active' : 'Inactive'}
+              </span>
+            </div>
           </div>
         </div>
 

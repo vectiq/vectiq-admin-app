@@ -12,6 +12,7 @@ import {
   where
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { hasProjectElapsed } from '@/lib/utils/date';
 import type { Project, ProjectTask } from '@/types';
 
 const COLLECTION = 'projects';
@@ -19,11 +20,14 @@ const COLLECTION = 'projects';
 export async function getProjects(): Promise<Project[]> {
   const projectsSnapshot = await getDocs(collection(db, COLLECTION));
   const projects = projectsSnapshot.docs.map((projectDoc) => {
-      const projectData = projectDoc.data();
+      const data = projectDoc.data();
+      const hasElapsed = hasProjectElapsed(data);
+      
       return {
-        ...projectData,
+        ...data,
         id: projectDoc.id,
-        tasks: projectData.tasks || [],
+        tasks: data.tasks || [],
+        isActive: !hasElapsed
       } as Project;
     });
 
@@ -46,7 +50,6 @@ export async function createProject(projectData: Omit<Project, 'id'>): Promise<P
       userAssignments: []
     })),
     approverEmail: projectData.approverEmail || '',
-    isActive: projectData.isActive ?? true,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
