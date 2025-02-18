@@ -10,6 +10,8 @@ interface EditableTimeCellProps {
   onStartEdit: () => void;
   onEndEdit: () => void;
   isDisabled?: boolean;
+  isModified?: boolean;
+  className?: string;
   isLocked?: boolean;
 }
 
@@ -20,6 +22,8 @@ export function EditableTimeCell({
   onStartEdit,
   onEndEdit,
   isDisabled = false,
+  isModified = false,
+  className = '',
   isLocked
 }: EditableTimeCellProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -86,7 +90,9 @@ export function EditableTimeCell({
           "py-2 text-center cursor-pointer rounded hover:bg-gray-50",
           value === null && "text-gray-400",
           (isDisabled || isLocked) && "cursor-not-allowed opacity-50 hover:bg-transparent",
-          isLocked && "bg-gray-50"
+          isLocked && "bg-gray-50",
+          isModified && "bg-yellow-50 font-medium text-yellow-700",
+          className
         )}
         title={isLocked ? `Time entries are locked` : undefined}
         onKeyDown={(e) => {

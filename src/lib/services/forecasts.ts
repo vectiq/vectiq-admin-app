@@ -1,88 +1,71 @@
-import {
+import { 
   collection,
   doc,
   getDoc,
-  deleteDoc,
   updateDoc,
-  getDocs,
   setDoc,
-  query,
-  where,
-  serverTimestamp,
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { format } from 'date-fns';
-import type { SavedForecast } from '@/types';
+import type { ForecastOverride } from '@/types';
 
 const COLLECTION = 'forecasts';
 
-interface ForecastHours {
-  hours: number;
-  isDefault: boolean;
-}
+export async function getForecastDeltas(
+  userId: string,
+  month: string
+): Promise<Record<string, ForecastOverride> | null> {
 
-export async function getSavedForecasts(month: string): Promise<SavedForecast[]> {
-  const forecastsRef = collection(db, COLLECTION);
-  const q = query(forecastsRef, where('month', '==', month));
-  const snapshot = await getDocs(q);
+  const docRef = doc(db, COLLECTION, `${userId}_${month}`);
+  const docSnap = await getDoc(docRef);
   
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  })) as SavedForecast[];
-}
-
-export async function saveForecast(
-  name: string,
-  month: string,
-  entries: SavedForecast['entries']
-): Promise<SavedForecast> {
-  const forecastRef = doc(collection(db, COLLECTION));
-  
-  const forecast: SavedForecast = {
-    id: forecastRef.id,
-    name,
-    month,
-    entries,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-
-  await setDoc(forecastRef, forecast);
-  return forecast;
-}
-
-export async function updateForecast(
-  id: string,
-  month: string,
-  name: string,
-  entries: SavedForecast['entries']
-): Promise<SavedForecast> {
-  const forecastRef = doc(db, COLLECTION, id);
-  const docSnap = await getDoc(forecastRef);
   
   if (!docSnap.exists()) {
-    throw new Error('Forecast not found');
+    return null;
   }
   
-  const existingData = docSnap.data() as SavedForecast;
-  const forecast: SavedForecast = {
-    id,
-    name,
-    month: month,
-    entries,
-    createdAt: docSnap.exists() ? docSnap.data().createdAt : new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
+  
+  // Find document for this user
+  const userDoc = docSnap.data();
 
-  await setDoc(forecastRef, {
-    ...forecast,
-    entries: entries
-  }, { merge: true });
-  return forecast;
+
+  if (!userDoc) return null;
+
+  return userDoc;
 }
 
-export async function deleteForecast(id: string): Promise<void> {
-  const forecastRef = doc(db, COLLECTION, id);
-  await deleteDoc(forecastRef);
+export async function saveForecastDelta(
+  userId: string, 
+  month: string, 
+  field: string,
+  value: number | null,
+  rowUserId: string
+): Promise<void> {
+  const docRef = doc(db, COLLECTION, `${userId}_${month}`);
+  const docSnap = await getDoc(docRef);
+
+  if (value === null) {
+    // If value matches dynamic value, remove the override
+    const updateData = {
+      [`${field}_${rowUserId}`]: null
+    };
+    
+    if (docSnap.exists()) {
+      await updateDoc(docRef, updateData);
+    }
+  } else {
+    // Store the override with timestamp
+    const updateData = {
+      [`${field}_${rowUserId}`]: {
+        value,
+        updatedAt: new Date().toISOString()
+      }
+    };
+
+    if (docSnap.exists()) {
+      await updateDoc(docRef, updateData);
+    } else {
+      await setDoc(docRef, updateData);
+    }
+  }
 }

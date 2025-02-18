@@ -1,4 +1,4 @@
-import { Building2, FolderKanban, BarChart2, TrendingUp, UserCircle, Settings, FileCheck, Users, DollarSign } from 'lucide-react';
+import { Building2, FolderKanban, BarChart2, TrendingUp, UserCircle, Settings, FileCheck, Users, DollarSign, Receipt } from 'lucide-react';
 
 export const navigationItems = [
   { name: 'Reports', href: '/reports', icon: BarChart2, roles: ['admin'], allowTeamManager: true },

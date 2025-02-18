@@ -29,6 +29,7 @@ const XERO_SCOPES = [
   { value: 'accounting.contacts.read', category: 'Accounting', description: 'Read contacts' },
   { value: 'accounting.attachments', category: 'Accounting', description: 'Read and write attachments' },
   { value: 'accounting.attachments.read', category: 'Accounting', description: 'Read attachments' },
+  { value: 'accounting.reports.read', category: 'Accounting', description: 'Read reports' },
   // Payroll API
   { value: 'payroll.employees', category: 'Payroll', description: 'Read and write employee data' },
   { value: 'payroll.employees.read', category: 'Payroll', description: 'Read employee data' },
@@ -129,6 +130,20 @@ export function IntegrationsTab({
               />
               <p className="mt-1 text-xs text-gray-500">
                 The tenant ID is used to identify your Xero organization when making API calls
+              </p>
+            </FormField>
+
+            <FormField label="Business Unit Tracking Category ID">
+              <Input
+                value={xeroConfig?.businessUnitTrackingCategoryId || ''}
+                onChange={(e) => onUpdateXeroConfig({
+                  ...xeroConfig,
+                  businessUnitTrackingCategoryId: e.target.value
+                })}
+                placeholder="e.g., 00000000-0000-0000-0000-000000000000"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                The Xero tracking category ID used for business unit tracking
               </p>
             </FormField>
 

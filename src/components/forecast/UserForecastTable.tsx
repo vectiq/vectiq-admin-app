@@ -1,16 +1,12 @@
-import { useMemo, useState, useEffect, useCallback } from 'react';
-import { Card } from '@/components/ui/Card';
-import { Table, TableHeader, TableBody, Th, Td } from '@/components/ui/Table';
-import { Badge } from '@/components/ui/Badge';
-import { EditableTimeCell } from '@/components/ui/EditableTimeCell';
-import { formatCurrency } from '@/lib/utils/currency';
-import { format, parseISO } from 'date-fns';
-import { getSellRateForDate, getCostRateForMonth, getAverageSellRate } from '@/lib/utils/rates';
-import { usePublicHolidays } from '@/lib/hooks/usePublicHolidays';
-import { Users, Briefcase, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { useMemo, useState, useEffect } from 'react';
+import { EmployeeForecastTable } from './EmployeeForecastTable';
+import { ContractorForecastTable } from './ContractorForecastTable';
+import { useForecasts } from '@/lib/hooks/useForecasts';
+import { useUsers } from '@/lib/hooks/useUsers';
 import { useLeaveForecasts } from '@/lib/hooks/useLeaveForecasts';
+import { usePublicHolidays } from '@/lib/hooks/usePublicHolidays';
 import { useBonuses } from '@/lib/hooks/useBonuses';
+import { getAverageSellRate, getCostRateForMonth } from '@/lib/utils/rates';
 import type { User, Project } from '@/types';
 
 interface UserForecastTableProps {
@@ -19,7 +15,6 @@ interface UserForecastTableProps {
   forecasts: any[];
   month: string;
   workingDays: number;
-  selectedForecast?: any;
   onForecastChange?: (changes: any) => void;
 }
 
@@ -29,73 +24,81 @@ export function UserForecastTable({
   forecasts,
   month,
   workingDays,
-  selectedForecast,
   onForecastChange
 }: UserForecastTableProps) {
-  const [editingCell, setEditingCell] = useState<string | null>(null);
   const [localData, setLocalData] = useState<Record<string, any>>({});
-
+  const { currentUser } = useUsers();
+  const { saveDelta, deltas } = useForecasts({
+    userId: currentUser?.id,
+    month
+  });
   const { leaveData } = useLeaveForecasts(month);
   const { holidays } = usePublicHolidays(month);
   const { bonuses } = useBonuses(month);
+  const [initialized, setInitialized] = useState(false);
 
-  // Create combined array of regular users and potential staff
-  const allUsers = useMemo(() => {
-    return users;
-  }, [users, forecasts]);
-  
-  // Get total bonuses for a user in the selected month
-  const getUserBonuses = useCallback((userId: string) => {
-    return bonuses
-      .filter(bonus => bonus.employeeId === userId)
-      .reduce((sum, bonus) => sum + bonus.amount, 0);
-  }, [bonuses]);
+  // Track which cells have been modified from their dynamic values
+  const [modifiedCells, setModifiedCells] = useState<Set<string>>(new Set());
+  // Separate users by type
+  const { employees, contractors } = useMemo(() => {
+    return users.reduce((acc, user) => {
+      if (user.employeeType === 'employee') {
+        acc.employees.push(user);
+      } else if (user.employeeType === 'contractor') {
+        acc.contractors.push(user);
+      }
+      return acc;
+    }, { employees: [] as User[], contractors: [] as User[] });
+  }, [users]);
 
   // Initialize local data from selected forecast
   useEffect(() => {
-    const newLocalData = {};
+    if (!users.length || !month || !workingDays || !forecasts || initialized) return;
+
     const monthStart = new Date(month + '-01');
     const monthEnd = new Date(monthStart);
     monthEnd.setMonth(monthEnd.getMonth() + 1);
     monthEnd.setDate(0);
 
-    if (Array.isArray(forecasts)) {
-      // Initialize from forecasts array
-      forecasts.forEach(entry => {
-        if (entry && entry.userId) {
-          let forecastHours = entry.forecastHours;
-          
-          // Adjust hours for potential staff based on start date
-          if (entry.isPotential && entry.startDate) {
-            const startDate = new Date(entry.startDate);
-            if (startDate > monthEnd) {
-              // Starting in future month
-              forecastHours = 0;
-            } else if (startDate > monthStart) {
-              // Starting this month - pro-rate the hours
-              const remainingWorkingDays = workingDays * (monthEnd.getDate() - startDate.getDate() + 1) / monthEnd.getDate();
-              forecastHours = (entry.hoursPerWeek / 5) * remainingWorkingDays;
-            }
-          }
+    const newLocalData: Record<string, any> = {};
 
-          newLocalData[entry.userId] = {
-            hoursPerWeek: entry.hoursPerWeek,
-            billablePercentage: entry.billablePercentage,
-            sellRate: entry.sellRate,
-            costRate: entry.costRate,
-            plannedBonus: entry.plannedBonus,
-            forecastHours,
-            name: entry.name,
-            isPotential: entry.isPotential,
-            startDate: entry.startDate
-          };
+    // Initialize from forecasts array
+    forecasts.forEach(entry => {
+      if (entry && entry.userId) {
+        let forecastHours = entry.forecastHours;
+        
+        // Adjust hours for potential staff based on start date
+        if (entry.isPotential && entry.startDate) {
+          const startDate = new Date(entry.startDate);
+          if (startDate > monthEnd) {
+            forecastHours = 0;
+          } else if (startDate > monthStart) {
+            const remainingWorkingDays = workingDays * (monthEnd.getDate() - startDate.getDate() + 1) / monthEnd.getDate();
+            forecastHours = (entry.hoursPerWeek / 5) * remainingWorkingDays;
+          }
         }
-      });
-    } else {
-      // Initialize with default values from user data
-      users.forEach(user => {
+
+        newLocalData[entry.userId] = {
+          hoursPerWeek: entry.hoursPerWeek,
+          billablePercentage: entry.billablePercentage,
+          sellRate: entry.sellRate,
+          costRate: entry.costRate,
+          plannedBonus: entry.plannedBonus,
+          forecastHours,
+          name: entry.name,
+          isPotential: entry.isPotential,
+          startDate: entry.startDate
+        };
+      }
+    });
+
+    // For any users not in forecasts, initialize with defaults
+    users.forEach(user => {
+      if (!newLocalData[user.id]) {
         const averageSellRate = getAverageSellRate(projects, user.id, month + '-01');
-        const totalBonuses = getUserBonuses(user.id);
+        const totalBonuses = bonuses
+          .filter(bonus => bonus.employeeId === user.id)
+          .reduce((sum, bonus) => sum + bonus.amount, 0);
         const costRate = getCostRateForMonth(user.costRate || [], month);
 
         newLocalData[user.id] = {
@@ -106,12 +109,62 @@ export function UserForecastTable({
           plannedBonus: totalBonuses,
           forecastHours: (user.hoursPerWeek || 40) * (workingDays / 5)
         };
+      }
+    });
+    // Apply saved forecast deltas if they exist
+    if (deltas) {
+      Object.entries(deltas).forEach(([field, delta]) => {
+        if (newLocalData[field]) {
+          Object.entries(delta).forEach(([key, value]) => {
+            if (key !== 'updatedAt' && key !== 'dynamicValue') {
+            }
+          }
+          )
+        }
+      }
+      )
+      Object.entries(deltas).forEach(([key, override]) => {
+        if (key === 'id' || key === 'updatedAt' || !override) return;
+
+        // Extract userId and field from the key (e.g., "userId_hoursPerWeek")
+        const parts = key.split('_');
+        if (parts.length !== 2) return;
+
+        const [userId, field] = parts;
+        if (newLocalData[userId] && override && typeof override === 'object' && 'value' in override) {
+          newLocalData[userId][field] = override.value;
+          setModifiedCells(prev => new Set([...prev, key]));
+        }
       });
     }
-    
-    setLocalData(newLocalData);
-  }, [selectedForecast, users, month, workingDays, projects, getUserBonuses]);
 
+    setLocalData(newLocalData);
+    setInitialized(true);
+  }, [forecasts, month, workingDays, users, projects, bonuses]);
+
+  // Separate effect for applying deltas
+  useEffect(() => {
+    if (!deltas || !initialized) return;
+
+    setLocalData(prevData => {
+      const newData = { ...prevData };
+      Object.entries(deltas).forEach(([key, override]) => {
+        if (key === 'id' || key === 'updatedAt' || !override) return;
+
+        const [userId, field] = key.split('_');
+        if (newData[userId] && override && typeof override === 'object' && 'value' in override) {
+          newData[userId][field] = override.value;
+          setModifiedCells(prev => new Set([...prev, key]));
+        }
+      });
+      return newData;
+    });
+  }, [deltas, initialized]);
+
+  // Reset initialization when key dependencies change
+  useEffect(() => {
+    setInitialized(false);
+  }, [month, workingDays]);
   const handleCellChange = (userId: string, field: string, value: number) => {
     const newData = {
       ...localData,
@@ -121,7 +174,7 @@ export function UserForecastTable({
       }
     };
 
-    // If changing hoursPerWeek, recalculate forecast hours based on start date
+    // If changing hoursPerWeek, recalculate forecast hours
     if (field === 'hoursPerWeek') {
       const userData = localData[userId];
       if (userData.isPotential && userData.startDate) {
@@ -131,35 +184,56 @@ export function UserForecastTable({
         monthEnd.setMonth(monthEnd.getMonth() + 1);
         monthEnd.setDate(0);
 
-        // Calculate forecast hours based on start date
         if (startDate > monthEnd) {
-          // Starting in future month
           newData[userId].forecastHours = 0;
         } else if (startDate > monthStart) {
-          // Starting this month - pro-rate the hours
           const remainingWorkingDays = workingDays * (monthEnd.getDate() - startDate.getDate() + 1) / monthEnd.getDate();
           newData[userId].forecastHours = (value / 5) * remainingWorkingDays;
         } else {
-          // Started in previous month or at start of this month
           newData[userId].forecastHours = (value / 5) * workingDays;
         }
       }
     }
 
     setLocalData(newData);
+    // Mark cell as modified
+    setModifiedCells(prev => new Set(prev).add(`${userId}_${field}`));
+    
+    // Get the dynamic value for this field
+    const user = users.find(u => u.id === userId);
+    let dynamicValue = 0;
+    
+    if (user) {
+      switch (field) {
+        case 'hoursPerWeek':
+          dynamicValue = user.hoursPerWeek || 40;
+          break;
+        case 'billablePercentage':
+          dynamicValue = user.estimatedBillablePercentage || 0;
+          break;
+        case 'sellRate':
+          dynamicValue = getAverageSellRate(projects, user.id, month + '-01');
+          break;
+        case 'costRate':
+          dynamicValue = getCostRateForMonth(user.costRate || [], month);
+          break;
+        case 'forecastHours':
+          dynamicValue = (user.hoursPerWeek || 40) * (workingDays / 5);
+          break;
+        case 'plannedBonus':
+          dynamicValue = bonuses
+            .filter(bonus => bonus.employeeId === user.id)
+            .reduce((sum, bonus) => sum + bonus.amount, 0);
+          break;
+      }
+    }
+
+    // Save or clear the override
+    saveDelta(month, field, value === dynamicValue ? null : value, user.id);
     
     if (onForecastChange) {
       const entries = users.map(user => {
-        const defaultData = {
-          hoursPerWeek: user.hoursPerWeek || 40,
-          billablePercentage: user.estimatedBillablePercentage || 0,
-          sellRate: getAverageSellRate(projects, user.id, month + '-01'),
-          costRate: getCostRateForMonth(user.costRate || [], month),
-          plannedBonus: getUserBonuses(user.id),
-          forecastHours: (user.hoursPerWeek || 40) * (workingDays / 5)
-        };
-
-        const userData = newData[user.id] || defaultData;
+        const userData = newData[user.id];
         const plannedLeave = leaveData?.leave
           ?.filter(leave => leave.employeeId === user.xeroEmployeeId && leave.status === 'SCHEDULED')
           ?.reduce((sum, leave) => sum + leave.numberOfUnits, 0) || 0;
@@ -180,192 +254,24 @@ export function UserForecastTable({
     }
   };
 
-  // Separate users by type
-  const { employees, contractors } = useMemo(() => {
-    return allUsers.reduce((acc, user) => {
-      if (user.employeeType === 'employee') {
-        acc.employees.push(user);
-      } else if (user.employeeType === 'contractor') {
-        acc.contractors.push(user);
-      }
-      return acc;
-    }, { employees: [] as any[], contractors: [] as any[] });
-  }, [allUsers]);
-
-  const renderUserTable = (users: User[], title: string, isEmployee: boolean) => {
-    if (users.length === 0) return null;
-
-
-    return (
-      <>
-        <Card className="overflow-hidden">
-          <div className="bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-            {isEmployee ? (
-              <div className="p-2 bg-indigo-50 rounded-lg">
-                <Users className="h-5 w-5 text-indigo-600" />
-              </div>
-            ) : (
-              <div className="p-2 bg-emerald-50 rounded-lg">
-                <Briefcase className="h-5 w-5 text-emerald-600" />
-              </div>
-            )}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-              <p className="text-sm text-gray-500">
-                {users.length} {users.length === 1 ? 'person' : 'people'}
-              </p>
-            </div>
-            </div>
-          </div>
-        </div>
-
-        <Table>
-          <TableHeader>
-            <tr>
-              <Th>User</Th>
-              <Th className="text-center">Hours/Week</Th>
-              <Th className="text-center">Billable %</Th>
-              <Th className="text-center">Sell Rate</Th>
-              <Th className="text-center">Cost Rate</Th>
-              {isEmployee && (
-                <>
-                  <Th className="text-center">Public Holidays</Th>
-                  <Th className="text-center">Planned Leave</Th>
-                  <Th className="text-center">Bonus</Th>
-                </>
-              )}
-              <Th className="text-center">Forecast Hours</Th>
-            </tr>
-          </TableHeader>
-          <TableBody>
-            {users.map(user => {
-              const userData = localData[user.id] || {
-                hoursPerWeek: user.hoursPerWeek || 40,
-                billablePercentage: user.estimatedBillablePercentage || 0,
-                sellRate: 0,
-                costRate: getCostRateForMonth(user.costRate || [], month),
-                plannedBonus: 0,
-                forecastHours: (user.hoursPerWeek || 40) * (workingDays / 5)
-              };
-
-              return (
-                <tr key={user.id}>
-                  <Td className="font-medium">
-                    {user.name}
-                  </Td>
-                  <Td className="text-right p-0">
-                    <EditableTimeCell
-                      className="text-center"
-                      value={userData.hoursPerWeek}
-                      onChange={(value) => handleCellChange(user.id, 'hoursPerWeek', value)}
-                      isEditing={editingCell === `${user.id}-hoursPerWeek`}
-                      isDisabled={!selectedForecast}
-                      onStartEdit={() => setEditingCell(`${user.id}-hoursPerWeek`)}
-                      onEndEdit={() => setEditingCell(null)}
-                    />
-                  </Td>
-                  <Td className="text-right p-0">
-                    <EditableTimeCell
-                      className="text-center"
-                      value={userData.billablePercentage}
-                      onChange={(value) => handleCellChange(user.id, 'billablePercentage', value)}
-                      isEditing={editingCell === `${user.id}-billable`}
-                      isDisabled={!selectedForecast}
-                      onStartEdit={() => setEditingCell(`${user.id}-billable`)}
-                      onEndEdit={() => setEditingCell(null)}
-                    />
-                  </Td>
-                  <Td className="text-right p-0">
-                    <EditableTimeCell
-                      className="text-center"
-                      value={userData.sellRate}
-                      onChange={(value) => handleCellChange(user.id, 'sellRate', value)}
-                      isEditing={editingCell === `${user.id}-sellRate`}
-                      isDisabled={!selectedForecast}
-                      onStartEdit={() => setEditingCell(`${user.id}-sellRate`)}
-                      onEndEdit={() => setEditingCell(null)}
-                    />
-                  </Td>
-                  <Td className="text-right p-0">
-                    <EditableTimeCell
-                      className="text-center"
-                      value={userData.costRate}
-                      onChange={(value) => handleCellChange(user.id, 'costRate', value)}
-                      isEditing={editingCell === `${user.id}-costRate`}
-                      isDisabled={!selectedForecast}
-                      onStartEdit={() => setEditingCell(`${user.id}-costRate`)}
-                      onEndEdit={() => setEditingCell(null)}
-                    />
-                  </Td>
-                  {isEmployee && (
-                    <>
-                      <Td className="text-center">
-                        <Badge variant="secondary">
-                          {(holidays.length * 8).toFixed(1)} hrs
-                        </Badge>
-                      </Td>
-                      <Td className="text-center">
-                        {(() => {
-                          if (!leaveData?.leave) return <Badge variant="secondary">No Data</Badge>;
-
-                          const userLeave = leaveData.leave.filter(leave => 
-                            leave.employeeId === user.xeroEmployeeId &&
-                            leave.status === 'SCHEDULED'
-                          );
-                          
-                          if (userLeave.length === 0) return <Badge variant="secondary">None</Badge>;
-                          
-                          const totalHours = userLeave.reduce((sum, leave) => 
-                            sum + leave.numberOfUnits, 0
-                          );
-                          
-                          return (
-                            <Badge variant="warning">
-                              {totalHours.toFixed(1)} hrs
-                            </Badge>
-                          );
-                        })()}
-                      </Td>
-                      <Td className="text-right p-0">
-                        <EditableTimeCell
-                          className="text-center"
-                          value={userData.plannedBonus}
-                          onChange={(value) => handleCellChange(user.id, 'plannedBonus', value)}
-                          isEditing={editingCell === `${user.id}-bonus`}
-                          isDisabled={!selectedForecast}
-                          onStartEdit={() => setEditingCell(`${user.id}-bonus`)}
-                          onEndEdit={() => setEditingCell(null)}
-                        />
-                      </Td>
-                    </>
-                  )}
-                  <Td className="text-right p-0">
-                    <EditableTimeCell
-                      className="text-center"
-                      value={userData.forecastHours}
-                      onChange={(value) => handleCellChange(user.id, 'forecastHours', value)}
-                      isEditing={editingCell === `${user.id}-forecast`}
-                      isDisabled={!selectedForecast}
-                      onStartEdit={() => setEditingCell(`${user.id}-forecast`)}
-                      onEndEdit={() => setEditingCell(null)}
-                    />
-                  </Td>
-                </tr>
-              );
-            })}
-          </TableBody>
-        </Table>
-        </Card>
-      </>
-    );
-  };
-
   return (
     <div className="grid grid-cols-1 gap-8">
-      {renderUserTable(employees, "Employees", true)}
-      {renderUserTable(contractors, "Contractors", false)}
+      <EmployeeForecastTable
+        users={employees}
+        localData={localData}
+        holidays={holidays}
+        leaveData={leaveData}
+        month={month}
+        modifiedCells={modifiedCells}
+        onCellChange={handleCellChange}
+      />
+      <ContractorForecastTable
+        users={contractors}
+        localData={localData}
+        holidays={holidays}
+        modifiedCells={modifiedCells}
+        onCellChange={handleCellChange}
+      />
     </div>
   );
 }

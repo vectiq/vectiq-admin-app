@@ -1,73 +1,53 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect } from 'react';
-import { getSavedForecasts, saveForecast, updateForecast, deleteForecast } from '@/lib/services/forecasts';
-import type { SavedForecast } from '@/types';
+import { useQuery, useMutation, useQueryClient, useQueries } from '@tanstack/react-query';
+import { useCallback } from 'react';
+import { saveForecastDelta, getForecastDeltas } from '@/lib/services/forecasts';
+import type { ForecastOverride } from '@/types';
 
-const QUERY_KEY = 'forecasts';
+const QUERY_KEY = 'forecast-deltas';
 
-interface UseForecastsOptions {
+interface UseForecasts {
+  userId?: string;
   month: string;
 }
 
-export function useForecasts({ month }: UseForecastsOptions) {
+export function useForecasts({ userId, month }: UseForecasts) {
   const queryClient = useQueryClient();
 
-  // Query for saved forecasts
-  const query = useQuery({
-    queryKey: [QUERY_KEY, month],
-    queryFn: () => getSavedForecasts(month),
+
+  // Query for forecast deltas
+  const deltasQuery = useQuery({
+    queryKey: [QUERY_KEY, userId, month],
+    queryFn: () => getForecastDeltas(userId, month),
+    enabled: !!userId && !!month
   });
 
-  // Mutation for saving forecasts
-  const saveMutation = useMutation({
-    mutationFn: async ({ name, entries }: { 
-      name: string; 
-      entries: SavedForecast['entries'];
-    }) => {
-      return saveForecast(name, month, entries);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, month] });
-    }
-  });
 
-  const updateMutation = useMutation({
-    mutationFn: async (args: {
-      id: string;
+  // Mutation for saving forecast delta
+  const saveDeltaMutation = useMutation({
+    mutationFn: ({ month, field, value, dynamicValue }: { 
       month: string;
-      name: string;
-      entries: SavedForecast['entries'];
-    }) => {
-      return updateForecast(args.id, args.month, args.name, args.entries);
-    },
+      field: string;
+      value: number;
+      dynamicValue: number;
+    }) => saveForecastDelta(userId!, month, field, value, dynamicValue),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, month] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
     }
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteForecast(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, month] });
-    }
-  });
-
-  const handleSaveForecast = useCallback(async (name: string, entries: SavedForecast['entries']) => {
-    return saveMutation.mutateAsync({ name, entries });
-  }, [saveMutation]);
-
-  const handleUpdateForecast = useCallback(async (id: string, month: string, name: string, entries: SavedForecast['entries']) => {
-    return updateMutation.mutateAsync({ id, month, name, entries });
-  }, [updateMutation]);
+  const handleSaveDelta = useCallback(async (
+    month: string,
+    field: string,
+    value: number,
+    dynamicValue: number
+  ) => {
+    if (!userId) return null;
+    return saveDeltaMutation.mutateAsync({ month, field, value, dynamicValue });
+  }, [userId, saveDeltaMutation]);
 
   return {
-    forecasts: query.data || [],
-    isLoading: query.isLoading,
-    error: query.error,
-    saveForecast: handleSaveForecast,
-    updateForecast: handleUpdateForecast,
-    deleteForecast: deleteMutation.mutateAsync,
-    isSaving: saveMutation.isPending || updateMutation.isPending,
-    isDeleting: deleteMutation.isPending
+    deltas: deltasQuery.data,
+    saveDelta: handleSaveDelta,
+    isSaving: saveDeltaMutation.isPending
   };
 }
