@@ -12,18 +12,23 @@ import {
   where
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { hasProjectElapsed } from '@/lib/utils/date';
 import type { Project, ProjectTask } from '@/types';
+import { isAscii } from 'buffer';
 
 const COLLECTION = 'projects';
 
 export async function getProjects(): Promise<Project[]> {
   const projectsSnapshot = await getDocs(collection(db, COLLECTION));
   const projects = projectsSnapshot.docs.map((projectDoc) => {
-      const projectData = projectDoc.data();
+      const data = projectDoc.data();
+      
       return {
-        ...projectData,
+        ...data,
         id: projectDoc.id,
-        tasks: projectData.tasks || [],
+        tasks: data.tasks || [],
+        isActive: data.isActive ?? true,
+        hasProjectElapsed: hasProjectElapsed(data),
       } as Project;
     });
 
@@ -93,7 +98,7 @@ export async function updateProject(projectData: Project): Promise<void> {
   const projectRef = doc(db, COLLECTION, id);
   const projectUpdate = cleanObject({
     ...projectFields, 
-    isActive: projectData.isActive ?? true, // Ensure isActive is always included
+    isActive: projectData.isActive, // Use manually set isActive value
     tasks: cleanedTasks,
     updatedAt: serverTimestamp(),
   });
