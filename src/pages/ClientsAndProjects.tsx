@@ -66,16 +66,7 @@ export default function ClientsAndProjects() {
   const selectedProject = projects.find(p => p.id === selectedProjectId);
 
   // Filter projects based on active status and end date
-  const filteredProjects = projects.filter(project => {
-    if (includeInactive) return true;
-    
-    const isActive = project.isActive;
-    const hasEndDate = project.endDate && project.endDate.trim() !== '';
-    const endDate = hasEndDate ? new Date(project.endDate) : null;
-    const isEndDateInFuture = endDate ? endDate > new Date() : true;
-    
-    return isActive && (!hasEndDate || isEndDateInFuture);
-  });
+  const filteredProjects = projects.filter(project => includeInactive || project.isActive);
 
   const handleProjectSubmit = async (data: Project) => {
     if (selectedProject) {

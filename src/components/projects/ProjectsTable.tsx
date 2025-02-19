@@ -2,7 +2,8 @@ import { Edit, Trash2, ListTodo } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { formatCurrency } from '@/lib/utils/currency';
-import { formatDate } from '@/lib/utils/date';
+import { cn } from '@/lib/utils/styles';
+import { isAfter } from 'date-fns';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column'; 
 import {
@@ -17,6 +18,7 @@ import {
 } from '@/components/ui/AlertDialog';
 import type { Project } from '@/types';
 import { useState } from 'react';
+import { formatDate } from '@/lib/utils/date';
 
 interface ProjectsTableProps {
   projects: Project[];
@@ -58,7 +60,12 @@ export function ProjectsTable({
   );
 
   const dateBodyTemplate = (project: Project, field: 'startDate' | 'endDate') => (
-    <div>{formatDate(project[field])}</div>
+    <div className={cn(
+      field === 'endDate' && project.hasProjectElapsed && 
+      "text-red-600 font-medium"
+    )}>
+      {formatDate(project[field])}
+    </div>
   );
 
   const approvalBodyTemplate = (project: Project) => (

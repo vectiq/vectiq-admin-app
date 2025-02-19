@@ -72,6 +72,7 @@ export function ProjectForm({ project, onSubmit, onCancel }: ProjectFormProps) {
       purchaseOrderNumber: data.purchaseOrderNumber || '',
       xeroProjectId: data.xeroProjectId || '',
       xeroContactId: data.xeroContactId || '',
+      isActive: data.isActive,
       budget: data.budget || 0,
       startDate: data.startDate || '',
       endDate: data.endDate || '',
@@ -104,7 +105,7 @@ export function ProjectForm({ project, onSubmit, onCancel }: ProjectFormProps) {
             <div className="flex items-center gap-2">
               <Switch
                 checked={watch('isActive')}
-                disabled={true}
+                onCheckedChange={(checked) => setValue('isActive', checked)}
               />
               <span className="text-sm text-gray-500">
                 {watch('isActive') ? 'Active' : 'Inactive'}
