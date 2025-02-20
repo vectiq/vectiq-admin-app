@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Table, TableHeader, TableBody, Th, Td } from '@/components/ui/Table';
 import { Badge } from '@/components/ui/Badge';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/Tooltip';
 import { EditableTimeCell } from '@/components/ui/EditableTimeCell';
-import { Briefcase } from 'lucide-react';
+import { Briefcase, Info } from 'lucide-react';
+import { cn } from '@/lib/utils/styles';
 import type { User } from '@/types';
 
 interface ContractorForecastTableProps {
@@ -91,8 +93,29 @@ export function ContractorForecastTable({
             const adjustedForecastHours = Math.max(0, userData.forecastHours - publicHolidayHours);
 
             return (
-              <tr key={user.id}>
-                <Td className="font-medium">{user.name}</Td>
+              <tr 
+                key={user.id}
+                className={cn(
+                  user.isPotential && "bg-amber-50/50"
+                )}
+              >
+                <Td className="font-medium">
+                  <div className="flex items-center gap-2">
+                    {user.name}
+                    {user.isPotential && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-4 w-4 text-amber-500" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Potential contractor - not yet engaged</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
+                </Td>
                 <Td className="text-right p-0">
                   <EditableTimeCell
                     className="text-center"
