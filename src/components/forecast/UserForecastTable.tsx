@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { EmployeeForecastTable } from './EmployeeForecastTable';
 import { ContractorForecastTable } from './ContractorForecastTable';
+import { parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import type { User, Project } from '@/types';
 
 interface UserForecastTableProps {
@@ -26,6 +27,26 @@ export function UserForecastTable({
   month,
   onForecastChange
 }: UserForecastTableProps) {
+  // Get month boundaries
+  const monthStart = startOfMonth(parseISO(month + '-01'));
+  const monthEnd = endOfMonth(monthStart);
+
+  // Filter users based on start/end dates
+  const activeUsers = useMemo(() => {
+    return users.filter(user => {
+      // Check start date
+      if (user.startDate && new Date(user.startDate) > monthEnd) {
+        return false; // User starts after this month
+      }
+      
+      // Check end date
+      if (user.endDate && new Date(user.endDate) < monthStart) {
+        return false; // User ended before this month
+      }
+      
+      return true;
+    });
+  }, [users, monthStart, monthEnd]);
 
   // Track which cells have been modified from their dynamic values
   // Calculate leave hours for each user
@@ -43,15 +64,15 @@ export function UserForecastTable({
   }, [data.leave, users]);
   // Separate users by type
   const { employees, contractors } = useMemo(() => {
-    return users.reduce((acc, user) => {
+    return activeUsers.reduce((acc, user) => {
       if (user.employeeType === 'employee') {
         acc.employees.push(user);
       } else if (user.employeeType === 'contractor') {
         acc.contractors.push(user);
       }
       return acc;
-    }, { employees: [] as User[], contractors: [] as User[] });
-  }, [users]);
+    }, { employees: [] as User[], contractors: [] as User[] }); 
+  }, [activeUsers]);
 
   // Get modified cells from deltas
   const modifiedCells = useMemo(() => {
@@ -83,6 +104,7 @@ export function UserForecastTable({
         data={data}
         holidays={data.holidays}
         workingDays={data.workingDays}
+        month={month}
         modifiedCells={modifiedCells}
         onCellChange={onForecastChange}
       />

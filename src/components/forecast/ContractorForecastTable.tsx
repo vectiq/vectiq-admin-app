@@ -6,7 +6,9 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/comp
 import { EditableTimeCell } from '@/components/ui/EditableTimeCell';
 import { Briefcase, Info } from 'lucide-react';
 import { cn } from '@/lib/utils/styles';
+import { getWorkingDaysForUser } from '@/lib/utils/date';
 import type { User } from '@/types';
+import { parseISO, startOfMonth, endOfMonth } from 'date-fns';
 
 interface ContractorForecastTableProps {
   users: User[];
@@ -21,6 +23,7 @@ interface ContractorForecastTableProps {
   };
   holidays: any[];
   workingDays: number;
+  month: string;
   modifiedCells: Set<string>;
   onCellChange: (userId: string, field: string, value: number) => void;
 }
@@ -30,10 +33,13 @@ export function ContractorForecastTable({
   data,
   holidays,
   workingDays,
+  month,
   modifiedCells,
   onCellChange
 }: ContractorForecastTableProps) {
   const [editingCell, setEditingCell] = useState<string | null>(null);
+  const monthStart = startOfMonth(parseISO(month + '-01'));
+  const monthEnd = endOfMonth(monthStart);
 
   if (users.length === 0) return null;
 
@@ -159,14 +165,57 @@ export function ContractorForecastTable({
                 </Td>
                 <Td className="text-right p-0">
                   <div className="py-2 text-center">
-                    {(() => {
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center justify-center gap-1 cursor-help">
+                            {(() => {
+                      // Get month boundaries
+                      const monthStart = startOfMonth(parseISO(month + '-01'));
+                      const monthEnd = endOfMonth(monthStart);
+
+                      // Calculate effective working days for this user
+                      const effectiveWorkingDays = getWorkingDaysForUser(
+                        monthStart,
+                        monthEnd,
+                        user.startDate,
+                        user.endDate
+                      );
+
                       // Calculate forecast hours based on formula
-                      const baseHours = (userData.hoursPerWeek / 5) * workingDays;
+                      const baseHours = (userData.hoursPerWeek / 5) * effectiveWorkingDays;
                       const publicHolidayHours = holidays.length * 8;
                       const forecastHours = Math.max(0, baseHours - publicHolidayHours);
 
                       return forecastHours.toFixed(1);
-                    })()}
+                            })()}
+                            <Info className="h-4 w-4 text-gray-400" />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-sm">
+                          <div className="space-y-2 p-1">
+                            <p className="font-medium">Forecast Hours Calculation:</p>
+                            <div className="space-y-1 text-sm">
+                              <p>1. Base Hours = ({userData.hoursPerWeek} hrs/week ÷ 5) × {workingDays} working days</p>
+                              <p>2. Subtract the following:</p>
+                              <ul className="list-disc pl-4">
+                                <li>Public Holidays: {holidays.length * 8} hrs</li>
+                                {user.startDate && new Date(user.startDate) > monthStart && (
+                                  <li>Start Date Pro-rata: {
+                                    ((new Date(user.startDate).setHours(0,0,0,0) - monthStart.setHours(0,0,0,0)) / (1000 * 60 * 60 * 24) * (userData.hoursPerWeek / 5)).toFixed(1)
+                                  } hrs</li>
+                                )}
+                                {user.endDate && new Date(user.endDate) < monthEnd && (
+                                  <li>End Date Pro-rata: {
+                                    ((monthEnd.setHours(23,59,59,999) - new Date(user.endDate).setHours(23,59,59,999)) / (1000 * 60 * 60 * 24) * (userData.hoursPerWeek / 5)).toFixed(1)
+                                  } hrs</li>
+                                )}
+                              </ul>
+                            </div>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 </Td>
               </tr>
