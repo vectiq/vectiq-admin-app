@@ -30,22 +30,3 @@ export const getCurrentWeekDates = () => {
     return format(date, 'yyyy-MM-dd');
   });
 };
-
-export function calculateLeaveHours(leave: any, monthStart: Date, monthEnd: Date): number {
-  const leaveStart = new Date(leave.startDate);
-  const leaveEnd = new Date(leave.endDate);
-  
-  // If leave is entirely within month, return full units
-  if (leaveStart >= monthStart && leaveEnd <= monthEnd) {
-    return leave.numberOfUnits;
-  }
-  
-  // Calculate overlapping days
-  const start = leaveStart < monthStart ? monthStart : leaveStart;
-  const end = leaveEnd > monthEnd ? monthEnd : leaveEnd;
-  const totalDays = Math.ceil((leaveEnd.getTime() - leaveStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-  const overlappingDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-  
-  // Pro-rate the hours based on overlapping days
-  return (overlappingDays / totalDays) * leave.numberOfUnits;
-}

@@ -2,14 +2,13 @@ import { useMemo } from 'react';
 import { Card } from '@/components/ui/Card';
 import { formatCurrency } from '@/lib/utils/currency';
 import { getSellRateForDate, getCostRateForMonth } from '@/lib/utils/rates';
-import { format } from 'date-fns';
 import { DollarSign, TrendingUp, PieChart, Calculator } from 'lucide-react';
 import type { User, Project, ForecastEntry } from '@/types';
 
 interface ForecastSummaryCardProps {
   users: User[];
   projects: Project[];
-  forecasts: ForecastEntry[];
+  forecasts: any[];
   month: string;
   workingDays: number;
   holidays: { date: string }[];
@@ -31,7 +30,7 @@ export function ForecastSummaryCard({
     let totalBonuses = 0;
 
     // Calculate totals from forecast entries
-    forecasts.forEach(entry => {
+    (forecasts || []).forEach(entry => {
       const user = users.find(u => u.id === entry.userId);
       if (!user) return;
 
@@ -54,11 +53,11 @@ export function ForecastSummaryCard({
     return {
       revenue: totalRevenue,
       cost: totalCost,
-      bonuses: totalBonuses,
+      bonuses: bonuses?.reduce((sum, bonus) => sum + bonus.amount, 0) || 0,
       grossMargin,
       marginPercent
     };
-  }, [forecasts, users]);
+  }, [forecasts, bonuses]);
 
   return (
     <Card className="p-6 relative overflow-hidden">
@@ -98,7 +97,7 @@ export function ForecastSummaryCard({
             <p className="text-3xl font-bold text-gray-900">
               {formatCurrency(summary.cost)}
             </p>
-            {summary.bonuses > 0 && (
+            {bonuses?.length > 0 && (
               <p className="mt-2 text-sm text-purple-600">
                 Includes {formatCurrency(summary.bonuses)} in bonuses
               </p>

@@ -1,52 +1,51 @@
-import { useQuery, useMutation, useQueryClient, useQueries } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { saveForecastDelta, getForecastDeltas } from '@/lib/services/forecasts';
-import type { ForecastOverride } from '@/types';
+import { useUsers } from '@/lib/hooks/useUsers';
+import { getForecastData, saveForecastDelta } from '@/lib/services/forecasts';
 
-const QUERY_KEY = 'forecast-deltas';
+const QUERY_KEY = 'forecast';
 
-interface UseForecasts {
-  userId?: string;
+interface UseForecastsOptions {
   month: string;
 }
 
-export function useForecasts({ userId, month }: UseForecasts) {
+export function useForecasts({ month }: UseForecastsOptions) {
   const queryClient = useQueryClient();
+  const { currentUser } = useUsers();
 
-
-  // Query for forecast deltas
-  const deltasQuery = useQuery({
-    queryKey: [QUERY_KEY, userId, month],
-    queryFn: () => getForecastDeltas(userId, month),
-    enabled: !!userId && !!month
+  // Query for all forecast data
+  const query = useQuery({
+    queryKey: [QUERY_KEY, month],
+    queryFn: () => getForecastData(month, currentUser?.id || ''),
+    enabled: !!month && !!currentUser?.id
   });
-
 
   // Mutation for saving forecast delta
   const saveDeltaMutation = useMutation({
-    mutationFn: ({ month, field, value, dynamicValue }: { 
-      month: string;
+    mutationFn: ({ userId, field, value, dynamicValue }: { 
+      userId: string;
       field: string;
       value: number;
       dynamicValue: number;
-    }) => saveForecastDelta(userId!, month, field, value, dynamicValue),
+    }) => saveForecastDelta(userId, field, value, dynamicValue, month, currentUser?.id || ''),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, month] });
     }
   });
 
   const handleSaveDelta = useCallback(async (
-    month: string,
+    userId: string,
     field: string,
     value: number,
     dynamicValue: number
   ) => {
-    if (!userId) return null;
-    return saveDeltaMutation.mutateAsync({ month, field, value, dynamicValue });
-  }, [userId, saveDeltaMutation]);
+    if (currentUser?.id) return saveDeltaMutation.mutateAsync({ userId, field, value, dynamicValue });
+  }, [saveDeltaMutation]);
 
   return {
-    deltas: deltasQuery.data,
+    data: query.data,
+    isLoading: query.isLoading,
+    error: query.error,
     saveDelta: handleSaveDelta,
     isSaving: saveDeltaMutation.isPending
   };

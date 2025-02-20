@@ -9,9 +9,18 @@ import type { User } from '@/types';
 
 interface EmployeeForecastTableProps {
   users: User[];
-  localData: Record<string, any>;
+  data: {
+    users: User[];
+    projects: Project[];
+    bonuses: any[];
+    leave: any[];
+    holidays: any[];
+    workingDays: number;
+    deltas: Record<string, any>;
+  };
   holidays: any[];
-  leaveData: any;
+  workingDays: number;
+  leaveHours: Record<string, number>;
   month: string;
   modifiedCells: Set<string>;
   onCellChange: (userId: string, field: string, value: number) => void;
@@ -19,9 +28,10 @@ interface EmployeeForecastTableProps {
 
 export function EmployeeForecastTable({
   users,
-  localData,
+  data,
   holidays,
-  leaveData,
+  workingDays,
+  leaveHours,
   month,
   modifiedCells,
   onCellChange
@@ -64,13 +74,26 @@ export function EmployeeForecastTable({
         </TableHeader>
         <TableBody>
           {users.map(user => {
-            const userData = localData[user.id] || {
+            // Get base values from user
+            const baseValues = {
               hoursPerWeek: user.hoursPerWeek || 40,
               billablePercentage: user.estimatedBillablePercentage || 0,
-              sellRate: 0,
-              costRate: 0,
+              sellRate: 0, // Will be calculated from projects
+              costRate: 0, // Will be calculated from user.costRate
               plannedBonus: 0,
               forecastHours: 0
+            };
+
+            // Apply any deltas that exist
+            const deltas = data.deltas || {};
+            const userData = {
+              ...baseValues,
+              hoursPerWeek: deltas[`${user.id}_hoursPerWeek`]?.value ?? baseValues.hoursPerWeek,
+              billablePercentage: deltas[`${user.id}_billablePercentage`]?.value ?? baseValues.billablePercentage,
+              sellRate: deltas[`${user.id}_sellRate`]?.value ?? baseValues.sellRate,
+              costRate: deltas[`${user.id}_costRate`]?.value ?? baseValues.costRate,
+              plannedBonus: deltas[`${user.id}_plannedBonus`]?.value ?? baseValues.plannedBonus,
+              forecastHours: deltas[`${user.id}_forecastHours`]?.value ?? baseValues.forecastHours
             };
 
             return (
@@ -127,26 +150,8 @@ export function EmployeeForecastTable({
                 </Td>
                 <Td className="text-center">
                   {(() => {
-                    if (!leaveData?.leave) return <Badge variant="secondary">No Data</Badge>;
-
-                    // Get first day of target month
-                    const monthStart = new Date(month + '-01');
-                    const monthEnd = new Date(monthStart);
-                    monthEnd.setMonth(monthEnd.getMonth() + 1);
-                    monthEnd.setDate(0);
-
-                    const userLeave = leaveData.leave.filter(leave => 
-                      leave.employeeId === user.xeroEmployeeId &&
-                      leave.status === 'SCHEDULED' &&
-                      new Date(leave.startDate) <= monthEnd &&
-                      new Date(leave.endDate) >= monthStart
-                    );
-                    
-                    if (userLeave.length === 0) return <Badge variant="secondary">None</Badge>;
-                    
-                    const totalHours = userLeave.reduce((sum, leave) => 
-                      sum + calculateLeaveHours(leave, monthStart, monthEnd), 0
-                    );
+                    const totalHours = leaveHours[user.id] || 0;
+                    if (totalHours === 0) return <Badge variant="secondary">None</Badge>;
                     
                     return (
                       <Badge variant="warning">
@@ -167,15 +172,18 @@ export function EmployeeForecastTable({
                   />
                 </Td>
                 <Td className="text-right p-0">
-                  <EditableTimeCell
-                    className="text-center"
-                    value={userData.forecastHours}
-                    onChange={(value) => onCellChange(user.id, 'forecastHours', value)}
-                    isEditing={editingCell === `${user.id}-forecast`}
-                    isModified={modifiedCells.has(`${user.id}_forecastHours`)}
-                    onStartEdit={() => setEditingCell(`${user.id}-forecast`)}
-                    onEndEdit={() => setEditingCell(null)}
-                  />
+                  <div className="py-2 text-center">
+                    {(() => {
+                      // Calculate forecast hours based on formula
+                      const baseHours = (userData.hoursPerWeek / 5) * workingDays;
+                      const billableHours = baseHours * (userData.billablePercentage / 100);
+                      const publicHolidayHours = holidays.length * 8;
+                      const userLeaveHours = leaveHours[user.id] || 0;
+                      const forecastHours = Math.max(0, billableHours - publicHolidayHours - userLeaveHours);
+
+                      return forecastHours.toFixed(1);
+                    })()}
+                  </div>
                 </Td>
               </tr>
             );

@@ -8,16 +8,26 @@ import type { User } from '@/types';
 
 interface ContractorForecastTableProps {
   users: User[];
-  localData: Record<string, any>;
+  data: {
+    users: User[];
+    projects: Project[];
+    bonuses: any[];
+    leave: any[];
+    holidays: any[];
+    workingDays: number;
+    deltas: Record<string, any>;
+  };
   holidays: any[];
+  workingDays: number;
   modifiedCells: Set<string>;
   onCellChange: (userId: string, field: string, value: number) => void;
 }
 
 export function ContractorForecastTable({
   users,
-  localData,
+  data,
   holidays,
+  workingDays,
   modifiedCells,
   onCellChange
 }: ContractorForecastTableProps) {
@@ -48,7 +58,6 @@ export function ContractorForecastTable({
           <tr>
             <Th>User</Th>
             <Th className="text-center">Hours/Week</Th>
-            <Th className="text-center">Billable %</Th>
             <Th className="text-center">Sell Rate</Th>
             <Th className="text-center">Cost Rate</Th>
             <Th className="text-center">Public Holidays</Th>
@@ -57,12 +66,24 @@ export function ContractorForecastTable({
         </TableHeader>
         <TableBody>
           {users.map(user => {
-            const userData = localData[user.id] || {
+            // Get base values from user
+            const baseValues = {
               hoursPerWeek: user.hoursPerWeek || 40,
               billablePercentage: user.estimatedBillablePercentage || 0,
               sellRate: 0,
               costRate: 0,
               forecastHours: 0
+            };
+
+            // Apply any deltas that exist
+            const deltas = data.deltas || {};
+            const userData = {
+              ...baseValues,
+              hoursPerWeek: deltas[`${user.id}_hoursPerWeek`]?.value ?? baseValues.hoursPerWeek,
+              billablePercentage: deltas[`${user.id}_billablePercentage`]?.value ?? baseValues.billablePercentage,
+              sellRate: deltas[`${user.id}_sellRate`]?.value ?? baseValues.sellRate,
+              costRate: deltas[`${user.id}_costRate`]?.value ?? baseValues.costRate,
+              forecastHours: deltas[`${user.id}_forecastHours`]?.value ?? baseValues.forecastHours
             };
 
             // For contractors, public holidays reduce forecast hours
@@ -80,17 +101,6 @@ export function ContractorForecastTable({
                     isEditing={editingCell === `${user.id}-hoursPerWeek`}
                     isModified={modifiedCells.has(`${user.id}_hoursPerWeek`)}
                     onStartEdit={() => setEditingCell(`${user.id}-hoursPerWeek`)}
-                    onEndEdit={() => setEditingCell(null)}
-                  />
-                </Td>
-                <Td className="text-right p-0">
-                  <EditableTimeCell
-                    className="text-center"
-                    value={userData.billablePercentage}
-                    onChange={(value) => onCellChange(user.id, 'billablePercentage', value)}
-                    isEditing={editingCell === `${user.id}-billable`}
-                    isModified={modifiedCells.has(`${user.id}_billablePercentage`)}
-                    onStartEdit={() => setEditingCell(`${user.id}-billable`)}
                     onEndEdit={() => setEditingCell(null)}
                   />
                 </Td>
@@ -122,15 +132,16 @@ export function ContractorForecastTable({
                   </Badge>
                 </Td>
                 <Td className="text-right p-0">
-                  <EditableTimeCell
-                    className="text-center"
-                    value={adjustedForecastHours}
-                    onChange={(value) => onCellChange(user.id, 'forecastHours', value)}
-                    isEditing={editingCell === `${user.id}-forecast`}
-                    isModified={modifiedCells.has(`${user.id}_forecastHours`)}
-                    onStartEdit={() => setEditingCell(`${user.id}-forecast`)}
-                    onEndEdit={() => setEditingCell(null)}
-                  />
+                  <div className="py-2 text-center">
+                    {(() => {
+                      // Calculate forecast hours based on formula
+                      const baseHours = (userData.hoursPerWeek / 5) * workingDays;
+                      const publicHolidayHours = holidays.length * 8;
+                      const forecastHours = Math.max(0, baseHours - publicHolidayHours);
+
+                      return forecastHours.toFixed(1);
+                    })()}
+                  </div>
                 </Td>
               </tr>
             );
