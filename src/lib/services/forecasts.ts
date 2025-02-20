@@ -14,100 +14,108 @@ import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { calculateLeaveHours } from '@/lib/utils/date';
 import { getWorkingDaysForMonth } from '@/lib/utils/workingDays';
 import { getAverageSellRate, getCostRateForMonth } from '@/lib/utils/rates';
-import type { User, Project, Bonus, Leave, PublicHoliday } from '@/types';
-
-interface ForecastData {
-  users: User[];
-  projects: Project[];
-  bonuses: Bonus[];
-  leave: Leave[];
-  holidays: PublicHoliday[];
-  workingDays: number;
-  deltas: Record<string, any>;
-}
+import type { User, Project, Bonus, Leave, PublicHoliday, ForecastData } from '@/types';
 
 export async function getForecastData(month: string, userId: string): Promise<ForecastData> {
-  // Get start and end dates for the month
-  const monthStart = startOfMonth(parseISO(month + '-01'));
-  const monthEnd = endOfMonth(monthStart);
+  try {
+    // Get start and end dates for the month
+    const monthStart = startOfMonth(parseISO(month + '-01'));
+    const monthEnd = endOfMonth(monthStart);
 
-  // Fetch all required data in parallel
-  const [
-    usersSnapshot,
-    projectsSnapshot,
-    bonusesSnapshot,
-    leaveSnapshot,
-    holidaysSnapshot,
-    forecastDoc
-  ] = await Promise.all([
-    getDocs(collection(db, 'users')),
-    getDocs(collection(db, 'projects')),
-    getDocs(query(
-      collection(db, 'bonuses'),
-      where('date', '>=', format(monthStart, 'yyyy-MM-dd')),
-      where('date', '<=', format(monthEnd, 'yyyy-MM-dd'))
-    )),
-    getDocs(collection(db, 'employeeLeave')),
-    getDocs(collection(db, 'publicHolidays')),
-    getDoc(doc(db, 'forecasts', `${userId}_${month}`))
-  ]);
+    // Fetch all required data in parallel
+    const [
+      usersSnapshot,
+      projectsSnapshot,
+      bonusesSnapshot,
+      leaveSnapshot,
+      holidaysSnapshot,
+      forecastDoc
+    ] = await Promise.all([
+      getDocs(collection(db, 'users')),
+      getDocs(collection(db, 'projects')),
+      getDocs(query(
+        collection(db, 'bonuses'),
+        where('date', '>=', format(monthStart, 'yyyy-MM-dd')),
+        where('date', '<=', format(monthEnd, 'yyyy-MM-dd'))
+      )),
+      getDocs(collection(db, 'employeeLeave')),
+      getDocs(collection(db, 'publicHolidays')),
+      getDoc(doc(db, 'forecasts', `${userId}_${month}`))
+    ]);
 
-  // Transform snapshots into data
-  const users = usersSnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-    // Calculate cost rate for each user
-    costRate: getCostRateForMonth(doc.data().costRate, month),
-    // Calculate sell rate for each user based on their project assignments
-    sellRate: getAverageSellRate(
+    // Transform snapshots into data
+    const users = usersSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as User[];
+
+    const projects = projectsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Project[];
+
+    const bonuses = bonusesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as Bonus[]; // Include all bonuses
+
+    // Calculate bonus totals by user
+    const userBonuses = bonuses.reduce((acc, bonus) => {
+      if (!acc[bonus.employeeId]) {
+        acc[bonus.employeeId] = 0;
+      }
+      acc[bonus.employeeId] += bonus.amount;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Process leave data
+    const allLeave: Leave[] = [];
+    leaveSnapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.leave) {
+        // Filter leave entries that overlap with the selected month
+        const monthlyLeave = data.leave.filter(leave => {
+          const leaveStart = new Date(leave.startDate);
+          const leaveEnd = new Date(leave.endDate);
+          return leaveStart <= monthEnd && leaveEnd >= monthStart;
+        });
+        allLeave.push(...monthlyLeave);
+      }
+    });
+
+    // Filter holidays for the month
+    const holidays = holidaysSnapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(holiday => holiday.date.startsWith(month)) as PublicHoliday[];
+
+    // Process forecast deltas
+    const deltas = forecastDoc.exists() ? forecastDoc.data() : {};
+
+    // Process users with their rates
+    const processedUsers = users.map(user => {
+      const currentCostRate = getCostRateForMonth(user.costRate, month);
+      const currentSellRate = getAverageSellRate(projects, user.id, format(monthStart, 'yyyy-MM-dd'));
+      
+      return {
+        ...user,
+        costRate: user.costRate || [], // Keep original cost rate array
+        currentCostRate,
+        currentSellRate
+      };
+    });
+    return {
+      users: processedUsers,
       projects,
-      doc.id,
-      format(monthStart, 'yyyy-MM-dd')
-    )
-  })) as User[];
-
-  const projects = projectsSnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  })) as Project[];
-
-  const bonuses = bonusesSnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  })) as Bonus[];
-
-  // Process leave data
-  const allLeave: Leave[] = [];
-  leaveSnapshot.forEach(doc => {
-    const data = doc.data();
-    if (data.leave) {
-      // Filter leave entries that overlap with the selected month
-      const monthlyLeave = data.leave.filter(leave => {
-        const leaveStart = new Date(leave.startDate);
-        const leaveEnd = new Date(leave.endDate);
-        return leaveStart <= monthEnd && leaveEnd >= monthStart;
-      });
-      allLeave.push(...monthlyLeave);
-    }
-  });
-
-  // Filter holidays for the month
-  const holidays = holidaysSnapshot.docs
-    .map(doc => ({ id: doc.id, ...doc.data() }))
-    .filter(holiday => holiday.date.startsWith(month)) as PublicHoliday[];
-
-  // Process forecast deltas
-  const deltas = forecastDoc.exists() ? forecastDoc.data() : {};
-
-  return {
-    users,
-    projects,
-    bonuses,
-    leave: allLeave,
-    holidays,
-    workingDays: getWorkingDaysForMonth(month),
-    deltas
-  };
+      bonuses: userBonuses,
+      leave: allLeave,
+      holidays,
+      workingDays: getWorkingDaysForMonth(month),
+      deltas
+    };
+  } catch (error) {
+    console.error('Error fetching forecast data:', error);
+    throw error;
+  }
 }
 
 export async function saveForecastDelta(

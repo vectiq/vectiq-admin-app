@@ -17,7 +17,8 @@ export function useForecasts({ month }: UseForecastsOptions) {
   const query = useQuery({
     queryKey: [QUERY_KEY, month],
     queryFn: () => getForecastData(month, currentUser?.id || ''),
-    enabled: !!month && !!currentUser?.id
+    enabled: !!month && !!currentUser?.id,
+    retry: false // Don't retry failed requests
   });
 
   // Mutation for saving forecast delta
@@ -45,7 +46,7 @@ export function useForecasts({ month }: UseForecastsOptions) {
   return {
     data: query.data,
     isLoading: query.isLoading,
-    error: query.error,
+    error: query.error as Error | null,
     saveDelta: handleSaveDelta,
     isSaving: saveDeltaMutation.isPending
   };

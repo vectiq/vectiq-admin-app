@@ -121,8 +121,21 @@ export default function Forecast() {
     setCurrentDate(startOfMonth(new Date()));
   };
 
-  if (isLoading || !data) {
+  // Show loading screen only if loading and no data
+  if (isLoading && !data) {
     return <LoadingScreen />;
+  }
+
+  // Show error if there is one
+  if (!data) {
+    return (
+      <div className="min-h-[400px] flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-lg font-medium text-gray-900 mb-2">Failed to load forecast data</h2>
+          <p className="text-sm text-gray-500">Please try refreshing the page</p>
+        </div>
+      </div>
+    );
   }
 
   return (

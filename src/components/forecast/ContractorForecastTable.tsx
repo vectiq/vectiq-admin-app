@@ -70,8 +70,8 @@ export function ContractorForecastTable({
             const baseValues = {
               hoursPerWeek: user.hoursPerWeek || 40,
               billablePercentage: user.estimatedBillablePercentage || 0,
-              sellRate: 0,
-              costRate: 0,
+              sellRate: user.currentSellRate || 0,
+              costRate: user.currentCostRate || 0,
               forecastHours: 0
             };
 
@@ -81,8 +81,8 @@ export function ContractorForecastTable({
               ...baseValues,
               hoursPerWeek: deltas[`${user.id}_hoursPerWeek`]?.value ?? baseValues.hoursPerWeek,
               billablePercentage: deltas[`${user.id}_billablePercentage`]?.value ?? baseValues.billablePercentage,
-              sellRate: deltas[`${user.id}_sellRate`]?.value ?? baseValues.sellRate,
-              costRate: deltas[`${user.id}_costRate`]?.value ?? baseValues.costRate,
+              sellRate: deltas[`${user.id}_sellRate`]?.value ?? (user.currentSellRate ?? 0),
+              costRate: deltas[`${user.id}_costRate`]?.value ?? (user.currentCostRate ?? 0),
               forecastHours: deltas[`${user.id}_forecastHours`]?.value ?? baseValues.forecastHours
             };
 

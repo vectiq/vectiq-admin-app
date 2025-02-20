@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/Card';
 import { formatCurrency } from '@/lib/utils/currency';
 import { getSellRateForDate, getCostRateForMonth } from '@/lib/utils/rates';
 import { DollarSign, TrendingUp, PieChart, Calculator } from 'lucide-react';
-import type { User, Project, ForecastEntry } from '@/types';
+import type { User, Project, ForecastEntry, Bonus } from '@/types';
 
 interface ForecastSummaryCardProps {
   users: User[];
@@ -12,7 +12,7 @@ interface ForecastSummaryCardProps {
   month: string;
   workingDays: number;
   holidays: { date: string }[];
-  bonuses: { employeeId: string; amount: number }[];
+  bonuses: Record<string, number>;
 }
 
 export function ForecastSummaryCard({
@@ -28,6 +28,11 @@ export function ForecastSummaryCard({
     let totalRevenue = 0;
     let totalCost = 0;
     let totalBonuses = 0;
+    
+    // Calculate total bonuses from the bonuses record
+    if (bonuses && typeof bonuses === 'object') {
+      totalBonuses = Object.values(bonuses).reduce((sum, amount) => sum + amount, 0);
+    }
 
     // Calculate totals from forecast entries
     (forecasts || []).forEach(entry => {
@@ -37,11 +42,9 @@ export function ForecastSummaryCard({
       const forecastHours = entry.forecastHours || 0;
       const sellRate = entry.sellRate || 0;
       const costRate = entry.costRate || 0;
-      const plannedBonus = entry.plannedBonus || 0;
 
       totalRevenue += forecastHours * sellRate;
       totalCost += forecastHours * costRate;
-      totalBonuses += plannedBonus;
     });
 
     totalCost += totalBonuses;
@@ -53,7 +56,7 @@ export function ForecastSummaryCard({
     return {
       revenue: totalRevenue,
       cost: totalCost,
-      bonuses: bonuses?.reduce((sum, bonus) => sum + bonus.amount, 0) || 0,
+      bonuses: totalBonuses,
       grossMargin,
       marginPercent
     };
@@ -97,7 +100,7 @@ export function ForecastSummaryCard({
             <p className="text-3xl font-bold text-gray-900">
               {formatCurrency(summary.cost)}
             </p>
-            {bonuses?.length > 0 && (
+            {summary.bonuses > 0 && (
               <p className="mt-2 text-sm text-purple-600">
                 Includes {formatCurrency(summary.bonuses)} in bonuses
               </p>

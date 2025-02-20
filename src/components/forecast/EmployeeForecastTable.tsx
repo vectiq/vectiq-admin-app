@@ -78,9 +78,9 @@ export function EmployeeForecastTable({
             const baseValues = {
               hoursPerWeek: user.hoursPerWeek || 40,
               billablePercentage: user.estimatedBillablePercentage || 0,
+              plannedBonus: data.bonuses[user.id] ?? 0, // Use nullish coalescing to handle 0 values correctly
               sellRate: 0, // Will be calculated from projects
-              costRate: 0, // Will be calculated from user.costRate
-              plannedBonus: 0,
+              sellRate: user.currentSellRate || 0,
               forecastHours: 0
             };
 
@@ -90,8 +90,8 @@ export function EmployeeForecastTable({
               ...baseValues,
               hoursPerWeek: deltas[`${user.id}_hoursPerWeek`]?.value ?? baseValues.hoursPerWeek,
               billablePercentage: deltas[`${user.id}_billablePercentage`]?.value ?? baseValues.billablePercentage,
-              sellRate: deltas[`${user.id}_sellRate`]?.value ?? baseValues.sellRate,
-              costRate: deltas[`${user.id}_costRate`]?.value ?? baseValues.costRate,
+              sellRate: deltas[`${user.id}_sellRate`]?.value ?? (user.currentSellRate ?? 0),
+              costRate: deltas[`${user.id}_costRate`]?.value ?? (user.currentCostRate ?? 0),
               plannedBonus: deltas[`${user.id}_plannedBonus`]?.value ?? baseValues.plannedBonus,
               forecastHours: deltas[`${user.id}_forecastHours`]?.value ?? baseValues.forecastHours
             };

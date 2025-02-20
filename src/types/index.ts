@@ -384,3 +384,18 @@ export interface XeroConfig {
   ordinaryHoursEarningsId: string;
   scopes: string[];
 }
+
+export interface ForecastData {
+  users: User[];
+  projects: Project[];
+  bonuses: Bonus[];
+  leave: Leave[];
+  holidays: PublicHoliday[];
+  workingDays: number;
+  deltas: Record<string, any>;
+}
+
+export interface ForecastDelta {
+  value: number;
+  updatedAt: string;
+}
