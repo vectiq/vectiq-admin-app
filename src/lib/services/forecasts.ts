@@ -1,6 +1,7 @@
 import { 
   collection,
   doc,
+  deleteDoc,
   getDoc,
   getDocs,
   query,
@@ -159,4 +160,9 @@ export async function saveForecastDelta(
       await setDoc(docRef, updateData);
     }
   }
+}
+
+export async function clearForecastDeltas(month: string, userId: string): Promise<void> {
+  const docRef = doc(db, 'forecasts', `${userId}_${month}`);
+  await deleteDoc(docRef);
 }

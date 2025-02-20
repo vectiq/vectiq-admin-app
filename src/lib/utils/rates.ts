@@ -73,7 +73,6 @@ export function getAverageSellRate(
       }))
   );
 
-  console.log('Found assignments:', assignments);
   return assignments.length > 0 
     ? assignments.reduce((sum, a) => sum + a.sellRate, 0) / assignments.length 
     : 0;

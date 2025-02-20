@@ -10,6 +10,7 @@ import { UserForecastTable } from '@/components/forecast/UserForecastTable';
 import { WorkingDaysPanel } from '@/components/forecast/WorkingDaysPanel';
 import { DateNavigation } from '@/components/ui/DateNavigation';
 import { ForecastSummaryCard } from '@/components/forecast/ForecastSummaryCard';
+import { Loader2, RefreshCw } from 'lucide-react';
 
 const VIEW_OPTIONS = [
   { id: 'monthly', label: 'Single Month' },
@@ -34,7 +35,7 @@ export default function Forecast() {
   const currentMonth = format(currentDate, 'yyyy-MM');
 
   const { currentUser, managedTeam, isTeamManager } = useUsers();
-  const { data, isLoading, saveDelta } = useForecasts({ month: currentMonth });
+  const { data, isLoading, saveDelta, clearDeltas, isClearing } = useForecasts({ month: currentMonth });
 
   // Handle URL params on initial load
   useEffect(() => {
@@ -178,6 +179,18 @@ export default function Forecast() {
               onToday={handleToday}
               formatString="MMMM yyyy"
             />
+            <Button
+              variant="secondary"
+              onClick={clearDeltas}
+              disabled={isClearing || !data?.deltas || Object.keys(data.deltas).length === 0}
+            >
+              {isClearing ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Clear Modified Values
+            </Button>
           </div>
 
           <ForecastSummaryCard

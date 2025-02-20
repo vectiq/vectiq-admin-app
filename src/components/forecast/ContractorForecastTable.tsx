@@ -102,6 +102,7 @@ export function ContractorForecastTable({
                     isModified={modifiedCells.has(`${user.id}_hoursPerWeek`)}
                     onStartEdit={() => setEditingCell(`${user.id}-hoursPerWeek`)}
                     onEndEdit={() => setEditingCell(null)}
+                    onClear={() => onCellChange(user.id, 'hoursPerWeek', baseValues.hoursPerWeek)}
                   />
                 </Td>
                 <Td className="text-right p-0">
@@ -113,6 +114,7 @@ export function ContractorForecastTable({
                     isModified={modifiedCells.has(`${user.id}_sellRate`)}
                     onStartEdit={() => setEditingCell(`${user.id}-sellRate`)}
                     onEndEdit={() => setEditingCell(null)}
+                    onClear={() => onCellChange(user.id, 'sellRate', user.currentSellRate || 0)}
                   />
                 </Td>
                 <Td className="text-right p-0">
@@ -124,6 +126,7 @@ export function ContractorForecastTable({
                     isModified={modifiedCells.has(`${user.id}_costRate`)}
                     onStartEdit={() => setEditingCell(`${user.id}-costRate`)}
                     onEndEdit={() => setEditingCell(null)}
+                    onClear={() => onCellChange(user.id, 'costRate', user.currentCostRate || 0)}
                   />
                 </Td>
                 <Td className="text-center">
