@@ -102,7 +102,7 @@ export function ContractorForecastTable({
                     isModified={modifiedCells.has(`${user.id}_hoursPerWeek`)}
                     onStartEdit={() => setEditingCell(`${user.id}-hoursPerWeek`)}
                     onEndEdit={() => setEditingCell(null)}
-                    onClear={() => onCellChange(user.id, 'hoursPerWeek', baseValues.hoursPerWeek)}
+                    onClear={() => onCellChange(user.id, 'hoursPerWeek', null, baseValues.hoursPerWeek)}
                   />
                 </Td>
                 <Td className="text-right p-0">
@@ -114,7 +114,7 @@ export function ContractorForecastTable({
                     isModified={modifiedCells.has(`${user.id}_sellRate`)}
                     onStartEdit={() => setEditingCell(`${user.id}-sellRate`)}
                     onEndEdit={() => setEditingCell(null)}
-                    onClear={() => onCellChange(user.id, 'sellRate', user.currentSellRate || 0)}
+                    onClear={() => onCellChange(user.id, 'sellRate', null, user.currentSellRate || 0)}
                   />
                 </Td>
                 <Td className="text-right p-0">
@@ -126,7 +126,7 @@ export function ContractorForecastTable({
                     isModified={modifiedCells.has(`${user.id}_costRate`)}
                     onStartEdit={() => setEditingCell(`${user.id}-costRate`)}
                     onEndEdit={() => setEditingCell(null)}
-                    onClear={() => onCellChange(user.id, 'costRate', user.currentCostRate || 0)}
+                    onClear={() => onCellChange(user.id, 'costRate', null, user.currentCostRate || 0)}
                   />
                 </Td>
                 <Td className="text-center">

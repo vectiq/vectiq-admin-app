@@ -1,52 +1,64 @@
 import { useMemo } from 'react';
 import { Card } from '@/components/ui/Card';
 import { formatCurrency } from '@/lib/utils/currency';
-import { getSellRateForDate, getCostRateForMonth } from '@/lib/utils/rates';
 import { DollarSign, TrendingUp, PieChart, Calculator } from 'lucide-react';
-import type { User, Project, ForecastEntry, Bonus } from '@/types';
+import type { ForecastData } from '@/types';
 
 interface ForecastSummaryCardProps {
-  users: User[];
-  projects: Project[];
-  forecasts: any[];
-  month: string;
-  workingDays: number;
-  holidays: { date: string }[];
-  bonuses: Record<string, number>;
+  data: ForecastData;
 }
 
-export function ForecastSummaryCard({
-  users,
-  projects,
-  forecasts,
-  month,
-  workingDays,
-  holidays,
-  bonuses
-}: ForecastSummaryCardProps) {
+export function ForecastSummaryCard({ data }: ForecastSummaryCardProps) {
   const summary = useMemo(() => {
     let totalRevenue = 0;
     let totalCost = 0;
     let totalBonuses = 0;
     
-    // Calculate total bonuses from the bonuses record
-    if (bonuses && typeof bonuses === 'object') {
-      totalBonuses = Object.values(bonuses).reduce((sum, amount) => sum + amount, 0);
-    }
-
-    // Calculate totals from forecast entries
-    (forecasts || []).forEach(entry => {
-      const user = users.find(u => u.id === entry.userId);
-      if (!user) return;
-
-      const forecastHours = entry.forecastHours || 0;
-      const sellRate = entry.sellRate || 0;
-      const costRate = entry.costRate || 0;
-
+    // Process employees
+    data.users.filter(u => u.employeeType === 'employee').forEach(user => {
+      // Calculate base hours
+      const baseHours = ((data.deltas[`${user.id}_hoursPerWeek`]?.value ?? (user.hoursPerWeek || 40)) / 5) * data.workingDays;
+      
+      // Apply billable percentage
+      const billableHours = baseHours * ((data.deltas[`${user.id}_billablePercentage`]?.value ?? (user.estimatedBillablePercentage || 0)) / 100);
+      
+      // Subtract holidays and leave
+      const holidayHours = data.holidays.length * 8;
+      const leaveHours = data.leave.filter(l => l.employeeId === user.xeroEmployeeId).reduce((sum, l) => sum + l.numberOfUnits, 0);
+      const forecastHours = Math.max(0, billableHours - holidayHours - leaveHours);
+      
+      // Get rates
+      const sellRate = data.deltas[`${user.id}_sellRate`]?.value ?? (user.currentSellRate || 0);
+      const costRate = data.deltas[`${user.id}_costRate`]?.value ?? (user.currentCostRate || 0);
+      const bonus = data.deltas[`${user.id}_plannedBonus`]?.value ?? (data.bonuses[user.id] || 0);
+      
+      // Calculate totals
       totalRevenue += forecastHours * sellRate;
       totalCost += forecastHours * costRate;
+      totalBonuses += bonus;
     });
 
+    // Process contractors
+    data.users.filter(u => u.employeeType === 'contractor').forEach(user => {
+      // Calculate base hours
+      const baseHours = ((data.deltas[`${user.id}_hoursPerWeek`]?.value ?? (user.hoursPerWeek || 40)) / 5) * data.workingDays;
+      
+      // Subtract holidays only
+      const holidayHours = data.holidays.length * 8;
+      const forecastHours = Math.max(0, baseHours - holidayHours);
+      
+      // Get rates
+      const sellRate = data.deltas[`${user.id}_sellRate`]?.value ?? (user.currentSellRate || 0);
+      const costRate = data.deltas[`${user.id}_costRate`]?.value ?? (user.currentCostRate || 0);
+      const bonus = data.deltas[`${user.id}_plannedBonus`]?.value ?? (data.bonuses[user.id] || 0);
+      
+      // Calculate totals
+      totalRevenue += forecastHours * sellRate;
+      totalCost += forecastHours * costRate;
+      totalBonuses += bonus;
+    });
+
+    // Add bonuses to total cost
     totalCost += totalBonuses;
 
     // Calculate margin
@@ -60,7 +72,7 @@ export function ForecastSummaryCard({
       grossMargin,
       marginPercent
     };
-  }, [forecasts, bonuses]);
+  }, [data]);
 
   return (
     <Card className="p-6 relative overflow-hidden">

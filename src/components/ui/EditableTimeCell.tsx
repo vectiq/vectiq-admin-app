@@ -85,13 +85,18 @@ export function EditableTimeCell({
   ) : (
     <div className="relative">
       <div
-        onClick={(isDisabled || isLocked || isModified) ? undefined : onStartEdit}
+        onClick={(e) => {
+          e.preventDefault();
+          if (!isDisabled && !isLocked) {
+            onStartEdit();
+          }
+        }}
         role="button"
         tabIndex={0}
         aria-label={`${typeof value === 'number' ? value.toFixed(2) : '-'} hours`}
         className={cn(
           "py-2 text-center rounded",
-          !isModified && !isDisabled && !isLocked && "cursor-pointer hover:bg-gray-50",
+          !isDisabled && !isLocked && "cursor-pointer hover:bg-gray-50 transition-colors",
           value === null && "text-gray-400",
           (isDisabled || isLocked) && "cursor-not-allowed opacity-50 hover:bg-transparent",
           isLocked && "bg-gray-50",
@@ -102,14 +107,14 @@ export function EditableTimeCell({
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            if (!isDisabled && !isLocked && !isModified) {
+            if (!isDisabled && !isLocked) {
               onStartEdit();
             }
           }
         }}
       >
         {typeof value === 'number' ? value.toFixed(2) : '-'}
-        {isModified && onClear && (
+        {isModified && onClear && !isEditing && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>

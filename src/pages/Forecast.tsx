@@ -194,13 +194,7 @@ export default function Forecast() {
           </div>
 
           <ForecastSummaryCard
-            users={data.users}
-            projects={projects}
-            forecasts={data.forecasts}
-            month={currentMonth}
-            workingDays={data.workingDays}
-            holidays={data.holidays}
-            bonuses={data.bonuses}
+            data={data}
           />
 
           <WorkingDaysPanel selectedDate={currentDate} />

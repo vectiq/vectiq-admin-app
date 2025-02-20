@@ -133,17 +133,14 @@ export async function saveForecastDelta(
   // Create the key for this specific field
   const fieldKey = `${userId}_${field}`;
 
-  if (value === null || value === dynamicValue) {
+  // If value is null, delete the field
+  if (value === null) {
     if (docSnap.exists()) {
-      // Remove the field if it exists
-      const data = docSnap.data();
+      const data = { ...docSnap.data() };
       delete data[fieldKey];
-      
-      // If no more fields, delete the document
-      if (Object.keys(data).length === 0) {
-        await deleteDoc(docRef);
-      } else {
-        await updateDoc(docRef, data);
+      await deleteDoc(docRef);
+      if (Object.keys(data).length > 0) {
+        await setDoc(docRef, data);
       }
     }
   } else {
