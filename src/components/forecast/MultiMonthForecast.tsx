@@ -312,26 +312,20 @@ export function MultiMonthForecast({
         {/* Average Headcount */}
         <Card className="relative overflow-hidden bg-gradient-to-br from-indigo-50 to-white p-6 shadow-sm ring-1 ring-indigo-100">
           <div className="absolute top-0 right-0 w-32 h-32 transform translate-x-8 -translate-y-8">
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-indigo-600 opacity-10 rounded-full" />
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-emerald-600 opacity-10 rounded-full" />
           </div>
           <div className="relative">
-            <div className="flex items-center gap-2 text-indigo-600 mb-4">
-              <Users className="h-5 w-5" />
-              <h3 className="font-semibold">Average Headcount</h3>
+            <div className="flex items-center gap-2 text-emerald-600 mb-4">
+              <TrendingUp className="h-5 w-5" />
+              <h3 className="font-semibold">Total Profit</h3>
             </div>
-            <div className="flex items-baseline gap-1">
-              <p className="text-3xl font-bold text-gray-900">
-                {(() => {
-                  const months = Object.values(monthlyData).filter(m => m.data);
-                  const avgHeadcount = months.reduce((sum, m) => {
-                    const totals = calculateMonthTotals(m.data);
-                    return sum + totals.employeeCount + totals.contractorCount;
-                  }, 0) / (months.length || 1);
-                  return avgHeadcount.toFixed(1);
-                })()}
-              </p>
-              <span className="text-gray-500">people</span>
-            </div>
+            <p className="text-3xl font-bold text-gray-900">
+              {formatCurrency(
+                Object.values(monthlyData)
+                  .filter(m => m.data)
+                  .reduce((sum, m) => sum + calculateMonthTotals(m.data).margin, 0)
+              )}
+            </p>
           </div>
         </Card>
       </div>
