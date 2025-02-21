@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import { format, addMonths, subMonths, startOfMonth, addYears, subYears } from 'date-fns';
+import { useState, useMemo, useEffect } from 'react';
+import { format, addMonths, subMonths, startOfMonth, addYears } from 'date-fns';
 import { MultiMonthForecast } from '@/components/forecast/MultiMonthForecast';
 import { useUsers } from '@/lib/hooks/useUsers';
 import { useForecasts } from '@/lib/hooks/useForecasts';
@@ -21,31 +21,33 @@ export default function Forecast() {
   const [view, setView] = useState<'monthly' | 'multi'>('monthly');
   const [currentDate, setCurrentDate] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    const monthParam = params.get('month');
-    return monthParam ? 
-      startOfMonth(new Date(monthParam + '-01')) : 
-      startOfMonth(new Date());
+    const monthParam = params.get('month') || format(new Date(), 'yyyy-MM');
+    return startOfMonth(new Date(monthParam + '-01'));
   });
   const [dateRange, setDateRange] = useState({
     startDate: format(currentDate, 'yyyy-MM-dd'),
-    endDate: format(addMonths(currentDate, 5), 'yyyy-MM-dd')
+    endDate: format(addYears(currentDate, 1), 'yyyy-MM-dd')
   });
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // Update view and date when URL params change
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const viewParam = params.get('view');
+    const monthParam = params.get('month');
+    
+    if (viewParam === 'monthly' || viewParam === 'multi') {
+      setView(viewParam);
+    }
+    
+    if (monthParam) {
+      setCurrentDate(startOfMonth(new Date(monthParam + '-01')));
+    }
+  }, [window.location.search]);
 
   const currentMonth = format(currentDate, 'yyyy-MM');
 
   const { currentUser, managedTeam, isTeamManager } = useUsers();
   const { data, isLoading, saveDelta, clearDeltas, isClearing } = useForecasts({ month: currentMonth });
-
-  // Handle URL params on initial load
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const viewParam = params.get('view');
-    if (viewParam === 'monthly' || viewParam === 'multi') {
-      setView(viewParam);
-    }
-    setIsInitialLoad(false);
-  }, []);
 
   // Filter projects and users based on team manager status
   const projects = useMemo(() => {
@@ -79,47 +81,29 @@ export default function Forecast() {
     return data.users;
   }, [data?.users, isTeamManager, managedTeam?.id]);
 
-  // Update URL when view or date changes
+  // Update URL when date changes
   useEffect(() => {
     const params = new URLSearchParams();
     params.set('view', view);
-    if (view === 'monthly') {
-      params.set('month', format(currentDate, 'yyyy-MM'));
-    }
+    params.set('month', format(currentDate, 'yyyy-MM'));
     window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
-  }, [view, currentDate]);
-
-  // Get financial year dates
-  const financialYearStart = useMemo(() => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    // If before July, use previous year as start
-    const fyStartYear = month < 6 ? year - 1 : year;
-    return new Date(fyStartYear, 6, 1); // July 1st
-  }, [currentDate]);
-
-  const financialYearEnd = useMemo(() => {
-    return new Date(financialYearStart.getFullYear() + 1, 5, 30); // June 30th
-  }, [financialYearStart]);
+  }, [currentDate, view]);
 
   const handlePrevious = () => {
-    if (view === 'monthly') {
-      setCurrentDate(subMonths(currentDate, 1));
-    } else {
-      setCurrentDate(subYears(currentDate, 1));
-    }
+    setCurrentDate(subMonths(currentDate, 1));
   };
 
   const handleNext = () => {
-    if (view === 'monthly') {
-      setCurrentDate(addMonths(currentDate, 1));
-    } else {
-      setCurrentDate(addYears(currentDate, 1));
-    }
+    setCurrentDate(addMonths(currentDate, 1));
   };
 
   const handleToday = () => {
     setCurrentDate(startOfMonth(new Date()));
+  };
+  
+  const handleMonthSelect = (month: Date) => {
+    setView('monthly');
+    setCurrentDate(month);
   };
 
   // Show loading screen only if loading and no data
@@ -211,6 +195,7 @@ export default function Forecast() {
         <MultiMonthForecast
           startDate={new Date(dateRange.startDate)}
           endDate={new Date(dateRange.endDate)}
+          onMonthSelect={handleMonthSelect}
           onDateRangeChange={setDateRange}
         />
       )}

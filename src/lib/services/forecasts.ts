@@ -105,6 +105,7 @@ export async function getForecastData(month: string, userId: string): Promise<Fo
       };
     });
     return {
+      month,
       users: processedUsers,
       projects,
       bonuses: userBonuses,

@@ -386,6 +386,7 @@ export interface XeroConfig {
 }
 
 export interface ForecastData {
+  month: string;
   users: User[];
   projects: Project[];
   bonuses: Bonus[];
