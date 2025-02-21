@@ -54,11 +54,18 @@ export function ForecastSummaryCard({ data }: ForecastSummaryCardProps) {
             <p className="text-3xl font-bold text-gray-900">
               {formatCurrency(summary.cost)}
             </p>
-            {summary.bonuses > 0 && (
-              <p className="mt-2 text-sm text-purple-600">
-                Includes {formatCurrency(summary.bonuses)} in bonuses
-              </p>
-            )}
+            <div className="mt-2 space-y-1 text-sm text-purple-600">
+              {summary.bonuses > 0 && (
+                <p>
+                  Includes {formatCurrency(summary.bonuses)} in bonuses
+                </p>
+              )}
+              {summary.expenses > 0 && (
+                <p>
+                  Includes {formatCurrency(summary.expenses)} in expenses
+                </p>
+              )}
+            </div>
           </div>
         </div>
 

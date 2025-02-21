@@ -33,6 +33,7 @@ export function calculateForecastTotals(data: ForecastData): ForecastTotals {
   let totalRevenue = 0;
   let totalCost = 0;
   let totalBonuses = 0;
+  const totalExpenses = data.expenses || 0;
   let totalHours = 0;
   let totalLeaveHours = 0;
   let employeeCount = 0;
@@ -125,6 +126,9 @@ export function calculateForecastTotals(data: ForecastData): ForecastTotals {
   // Add bonuses to total cost
   totalCost += totalBonuses;
 
+  // Add expenses to total cost
+  totalCost += totalExpenses;
+
   // Calculate margin
   const margin = totalRevenue - totalCost;
   const marginPercent = totalRevenue > 0 ? (margin / totalRevenue) * 100 : 0;
@@ -132,9 +136,10 @@ export function calculateForecastTotals(data: ForecastData): ForecastTotals {
   return {
     hours: totalHours,
     revenue: totalRevenue,
-    cost: totalCost,
+    cost: totalCost + totalExpenses,
     leaveHours: totalLeaveHours,
     bonuses: totalBonuses,
+    expenses: totalExpenses,
     margin,
     marginPercent,
     employeeCount,

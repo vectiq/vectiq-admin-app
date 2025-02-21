@@ -389,6 +389,8 @@ export interface ForecastData {
   month: string;
   users: User[];
   projects: Project[];
+  expenses: number;
+  expenses: number;
   bonuses: Bonus[];
   leave: Leave[];
   holidays: PublicHoliday[];

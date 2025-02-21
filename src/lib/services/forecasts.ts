@@ -92,6 +92,9 @@ export async function getForecastData(month: string, userId: string): Promise<Fo
     // Process forecast deltas
     const deltas = forecastDoc.exists() ? forecastDoc.data() : {};
 
+    // Get expenses from forecast document
+    const expenses = forecastDoc.exists() ? forecastDoc.data().expenses || 0 : 0;
+
     // Process users with their rates
     const processedUsers = users.map(user => {
       const currentCostRate = getCostRateForMonth(user.costRate, month);
@@ -108,6 +111,7 @@ export async function getForecastData(month: string, userId: string): Promise<Fo
       month,
       users: processedUsers,
       projects,
+      expenses, // Use expenses from forecast document
       bonuses: userBonuses,
       leave: allLeave,
       holidays,
@@ -131,10 +135,17 @@ export async function saveForecastDelta(
   const docRef = doc(db, 'forecasts', `${currentUserId}_${month}`);
   const docSnap = await getDoc(docRef);
 
-  // Create the key for this specific field
-  const fieldKey = `${userId}_${field}`;
+  // Handle expenses separately
+  if (field === 'expenses') {
+    if (docSnap.exists()) {
+      await updateDoc(docRef, { expenses: value });
+    } else {
+      await setDoc(docRef, { expenses: value });
+    }
+    return;
+  }
 
-  // If value is null, delete the field
+  const fieldKey = `${userId}_${field}`;
   if (value === null) {
     if (docSnap.exists()) {
       const data = { ...docSnap.data() };

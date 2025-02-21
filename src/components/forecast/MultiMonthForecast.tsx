@@ -473,6 +473,7 @@ export function MultiMonthForecast({
                   <Th className="text-right">Forecast Hours</Th>
                   <Th className="text-right">Leave Hours</Th>
                   <Th className="text-right">Bonuses</Th>
+                  <Th className="text-right">Expenses</Th>
                   <Th className="text-right">Revenue</Th>
                   <Th className="text-right">Cost</Th>
                   <Th className="text-right">Margin</Th>
@@ -538,6 +539,9 @@ export function MultiMonthForecast({
                       </Td>
                       <Td className="text-right">
                         {formatCurrency(totals.bonuses)}
+                      </Td>
+                      <Td className="text-right">
+                        {formatCurrency(monthData.data.expenses || 0)}
                       </Td>
                       <Td className="text-right">
                         {formatCurrency(totals.revenue)}

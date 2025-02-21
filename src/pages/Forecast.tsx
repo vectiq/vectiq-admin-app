@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils/styles';
 import { UserForecastTable } from '@/components/forecast/UserForecastTable';
 import { WorkingDaysPanel } from '@/components/forecast/WorkingDaysPanel';
 import { DateNavigation } from '@/components/ui/DateNavigation';
+import { ExpensesPanel } from '@/components/forecast/ExpensesPanel';
 import { ForecastSummaryCard } from '@/components/forecast/ForecastSummaryCard';
 import { Loader2, RefreshCw } from 'lucide-react';
 
@@ -180,8 +181,14 @@ export default function Forecast() {
           <ForecastSummaryCard
             data={data}
           />
-
-          <WorkingDaysPanel selectedDate={currentDate} />
+          
+          <div className="grid grid-cols-2 gap-6">
+            <WorkingDaysPanel selectedDate={currentDate} />
+            <ExpensesPanel
+              expenses={data.expenses ?? 0}
+              onExpensesChange={(value) => saveDelta(null, 'expenses', value, 0)}
+            />
+          </div>
 
           <UserForecastTable
             users={filteredUsers}
