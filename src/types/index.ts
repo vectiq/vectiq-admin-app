@@ -352,6 +352,15 @@ export interface Project {
   updatedAt?: any;
 }
 
+export interface ForecastDelta {
+  value: number;
+  updatedAt: string;
+}
+
+export interface ForecastDocument {
+  [key: string]: ForecastDelta;
+}
+
 export interface ForecastOverride {
   value: number;
   updatedAt: string;
@@ -374,4 +383,22 @@ export interface XeroConfig {
   overtimePayItemCode: string;
   ordinaryHoursEarningsId: string;
   scopes: string[];
+}
+
+export interface ForecastData {
+  month: string;
+  users: User[];
+  projects: Project[];
+  expenses: number;
+  expenses: number;
+  bonuses: Bonus[];
+  leave: Leave[];
+  holidays: PublicHoliday[];
+  workingDays: number;
+  deltas: Record<string, any>;
+}
+
+export interface ForecastDelta {
+  value: number;
+  updatedAt: string;
 }

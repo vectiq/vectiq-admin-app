@@ -1,8 +1,7 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import { format, addMonths, subMonths, startOfMonth, addYears, subYears } from 'date-fns';
+import { useState, useMemo, useEffect } from 'react';
+import { format, addMonths, subMonths, startOfMonth, addYears } from 'date-fns';
 import { MultiMonthForecast } from '@/components/forecast/MultiMonthForecast';
 import { useUsers } from '@/lib/hooks/useUsers';
-import { useProjects } from '@/lib/hooks/useProjects'; 
 import { useForecasts } from '@/lib/hooks/useForecasts';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { Button } from '@/components/ui/Button';
@@ -10,12 +9,9 @@ import { cn } from '@/lib/utils/styles';
 import { UserForecastTable } from '@/components/forecast/UserForecastTable';
 import { WorkingDaysPanel } from '@/components/forecast/WorkingDaysPanel';
 import { DateNavigation } from '@/components/ui/DateNavigation';
+import { ExpensesPanel } from '@/components/forecast/ExpensesPanel';
 import { ForecastSummaryCard } from '@/components/forecast/ForecastSummaryCard';
-import { usePublicHolidays } from '@/lib/hooks/usePublicHolidays';
-import { useBonuses } from '@/lib/hooks/useBonuses';
-import { useLeaveForecasts } from '@/lib/hooks/useLeaveForecasts';
-import { getWorkingDaysForMonth } from '@/lib/utils/workingDays';
-import { getAverageSellRate, getCostRateForMonth } from '@/lib/utils/rates';
+import { Loader2, RefreshCw } from 'lucide-react';
 
 const VIEW_OPTIONS = [
   { id: 'monthly', label: 'Single Month' },
@@ -26,32 +22,38 @@ export default function Forecast() {
   const [view, setView] = useState<'monthly' | 'multi'>('monthly');
   const [currentDate, setCurrentDate] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    const monthParam = params.get('month');
-    return monthParam ? 
-      startOfMonth(new Date(monthParam + '-01')) : 
-      startOfMonth(new Date());
+    const monthParam = params.get('month') || format(new Date(), 'yyyy-MM');
+    return startOfMonth(new Date(monthParam + '-01'));
   });
   const [dateRange, setDateRange] = useState({
     startDate: format(currentDate, 'yyyy-MM-dd'),
-    endDate: format(addMonths(currentDate, 5), 'yyyy-MM-dd')
+    endDate: format(addYears(currentDate, 1), 'yyyy-MM-dd')
   });
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [forecasts, setForecasts] = useState<any[]>([]);
-  const [initialized, setInitialized] = useState(false);
+
+  // Update view and date when URL params change
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const viewParam = params.get('view');
+    const monthParam = params.get('month');
+    
+    if (viewParam === 'monthly' || viewParam === 'multi') {
+      setView(viewParam);
+    }
+    
+    if (monthParam) {
+      setCurrentDate(startOfMonth(new Date(monthParam + '-01')));
+    }
+  }, [window.location.search]);
 
   const currentMonth = format(currentDate, 'yyyy-MM');
-  const workingDays = getWorkingDaysForMonth(currentMonth);
 
   const { currentUser, managedTeam, isTeamManager } = useUsers();
-  const { projects: allProjects, isLoading: isLoadingProjects } = useProjects();
-  const { users, isLoading: isLoadingUsers } = useUsers();
-  const { holidays } = usePublicHolidays(currentMonth);
-  const { leaveData } = useLeaveForecasts(currentMonth);
-  const { bonuses } = useBonuses(format(currentDate, 'yyyy-MM'));
+  const { data, isLoading, saveDelta, clearDeltas, isClearing } = useForecasts({ month: currentMonth });
 
   // Filter projects and users based on team manager status
   const projects = useMemo(() => {
-    return allProjects.filter(project => {
+    if (!data?.projects) return [];
+    return data.projects.filter(project => {
       // Get first day of selected month
       const selectedDate = new Date(currentMonth + '-01');
       selectedDate.setHours(0, 0, 0, 0);
@@ -69,113 +71,57 @@ export default function Forecast() {
       
       return isActive && (!hasEndDate || isEndDateValid);
     });
-  }, [allProjects, currentMonth, isTeamManager, managedTeam?.id]);
+  }, [data?.projects, currentMonth, isTeamManager, managedTeam?.id]);
 
   // Filter users based on team manager status
   const filteredUsers = useMemo(() => {
+    if (!data?.users) return [];
     if (isTeamManager) {
-      return users.filter(user => user.teamId === managedTeam.id);
+      return data.users.filter(user => user.teamId === managedTeam.id);
     }
-    return users;
-  }, [users, isTeamManager, managedTeam?.id]);
-  // Handle URL params on initial load
-  useEffect(() => {
-    if (isInitialLoad) {
-      const params = new URLSearchParams(window.location.search);
-      const viewParam = params.get('view');
-      if (viewParam === 'monthly' || viewParam === 'multi') {
-        setView(viewParam);
-      }
-      setIsInitialLoad(false);
-    }
-  }, [isInitialLoad]);
+    return data.users;
+  }, [data?.users, isTeamManager, managedTeam?.id]);
 
-  // Update URL when view or date changes
+  // Update URL when date changes
   useEffect(() => {
     const params = new URLSearchParams();
     params.set('view', view);
-    if (view === 'monthly') {
-      params.set('month', format(currentDate, 'yyyy-MM'));
-    }
+    params.set('month', format(currentDate, 'yyyy-MM'));
     window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
-  }, [view, currentDate]);
-
-  // Get financial year dates
-  const financialYearStart = useMemo(() => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    // If before July, use previous year as start
-    const fyStartYear = month < 6 ? year - 1 : year;
-    return new Date(fyStartYear, 6, 1); // July 1st
-  }, [currentDate]);
-
-  const financialYearEnd = useMemo(() => {
-    return new Date(financialYearStart.getFullYear() + 1, 5, 30); // June 30th
-  }, [financialYearStart]);
-
-
-  // Memoize the default entries calculation
-  const getDefaultEntries = useCallback(() => {
-    return users.map(user => {
-      const averageSellRate = getAverageSellRate(projects, user.id, currentMonth + '-01');
-      const userBonuses = bonuses
-        .filter(bonus => bonus.employeeId === user.id)
-        .reduce((sum, bonus) => sum + bonus.amount, 0);
-      const costRate = getCostRateForMonth(user.costRate || [], currentMonth);
-      const plannedLeave = leaveData?.leave
-        ?.filter(leave => leave.employeeId === user.xeroEmployeeId && leave.status === 'SCHEDULED')
-        ?.reduce((sum, leave) => sum + leave.numberOfUnits, 0) || 0;
-
-      return {
-        userId: user.id,
-        hoursPerWeek: user.hoursPerWeek || 40,
-        billablePercentage: user.estimatedBillablePercentage || 0,
-        forecastHours: (user.hoursPerWeek || 40) * (workingDays / 5),
-        sellRate: averageSellRate,
-        costRate: costRate,
-        plannedBonus: userBonuses,
-        plannedLeave: plannedLeave,
-        publicHolidays: holidays.length * 8
-      };
-    });
-  }, [users, projects, currentMonth, bonuses, leaveData, workingDays, holidays]);
-
-  // Initialize forecast data
-  useEffect(() => {
-    if (!isLoadingUsers && !isLoadingProjects && !initialized) {
-      const defaultEntries = getDefaultEntries();
-      setForecasts(defaultEntries);
-      setInitialized(true);
-    }
-  }, [isLoadingUsers, isLoadingProjects, getDefaultEntries, initialized]);
-
-  // Reset initialization when month changes
-  useEffect(() => {
-    setInitialized(false);
-  }, [currentMonth]);
+  }, [currentDate, view]);
 
   const handlePrevious = () => {
-    if (view === 'monthly') {
-      setCurrentDate(subMonths(currentDate, 1));
-    } else {
-      setCurrentDate(subYears(currentDate, 1));
-    }
+    setCurrentDate(subMonths(currentDate, 1));
   };
 
   const handleNext = () => {
-    if (view === 'monthly') {
-      setCurrentDate(addMonths(currentDate, 1));
-    } else {
-      setCurrentDate(addYears(currentDate, 1));
-    }
+    setCurrentDate(addMonths(currentDate, 1));
   };
 
   const handleToday = () => {
     setCurrentDate(startOfMonth(new Date()));
   };
+  
+  const handleMonthSelect = (month: Date) => {
+    setView('monthly');
+    setCurrentDate(month);
+  };
 
-  if (isLoadingUsers || isLoadingProjects) {
+  // Show loading screen only if loading and no data
+  if (isLoading && !data) {
     return <LoadingScreen />;
+  }
+
+  // Show error if there is one
+  if (!data) {
+    return (
+      <div className="min-h-[400px] flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-lg font-medium text-gray-900 mb-2">Failed to load forecast data</h2>
+          <p className="text-sm text-gray-500">Please try refreshing the page</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -218,36 +164,45 @@ export default function Forecast() {
               onToday={handleToday}
               formatString="MMMM yyyy"
             />
+            <Button
+              variant="secondary"
+              onClick={clearDeltas}
+              disabled={isClearing || !data?.deltas || Object.keys(data.deltas).length === 0}
+            >
+              {isClearing ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Clear Modified Values
+            </Button>
           </div>
 
           <ForecastSummaryCard
-            users={users}
-            projects={projects}
-            forecasts={forecasts}
-            month={currentMonth}
-            workingDays={workingDays}
-            holidays={holidays}
-            bonuses={bonuses}
+            data={data}
           />
-
-          <WorkingDaysPanel selectedDate={currentDate} />
+          
+          <div className="grid grid-cols-2 gap-6">
+            <WorkingDaysPanel selectedDate={currentDate} />
+            <ExpensesPanel
+              expenses={data.expenses ?? 0}
+              onExpensesChange={(value) => saveDelta(null, 'expenses', value, 0)}
+            />
+          </div>
 
           <UserForecastTable
             users={filteredUsers}
             projects={projects}
-            leaveData={leaveData}
-            forecasts={forecasts} 
-            onForecastChange={(entries) => {
-              setForecasts(entries);
-            }}
+            data={data}
+            onForecastChange={saveDelta}
             month={currentMonth}
-            workingDays={workingDays}
           />
         </>
       ) : (
         <MultiMonthForecast
           startDate={new Date(dateRange.startDate)}
           endDate={new Date(dateRange.endDate)}
+          onMonthSelect={handleMonthSelect}
           onDateRangeChange={setDateRange}
         />
       )}

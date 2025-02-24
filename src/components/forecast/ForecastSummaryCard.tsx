@@ -1,64 +1,20 @@
-import { useMemo } from 'react';
 import { Card } from '@/components/ui/Card';
 import { formatCurrency } from '@/lib/utils/currency';
-import { getSellRateForDate, getCostRateForMonth } from '@/lib/utils/rates';
-import { format } from 'date-fns';
 import { DollarSign, TrendingUp, PieChart, Calculator } from 'lucide-react';
-import type { User, Project, ForecastEntry } from '@/types';
+import { calculateForecastTotals } from '@/lib/utils/forecast'; 
+import type { ForecastData } from '@/types';
 
 interface ForecastSummaryCardProps {
-  users: User[];
-  projects: Project[];
-  forecasts: ForecastEntry[];
-  month: string;
-  workingDays: number;
-  holidays: { date: string }[];
-  bonuses: { employeeId: string; amount: number }[];
+  data: ForecastData;
 }
 
-export function ForecastSummaryCard({
-  users,
-  projects,
-  forecasts,
-  month,
-  workingDays,
-  holidays,
-  bonuses
-}: ForecastSummaryCardProps) {
-  const summary = useMemo(() => {
-    let totalRevenue = 0;
-    let totalCost = 0;
-    let totalBonuses = 0;
+export function ForecastSummaryCard({ data }: ForecastSummaryCardProps) {
+  if (!data.month) {
+    console.error('Month is missing from forecast data');
+    return null;
+  }
 
-    // Calculate totals from forecast entries
-    forecasts.forEach(entry => {
-      const user = users.find(u => u.id === entry.userId);
-      if (!user) return;
-
-      const forecastHours = entry.forecastHours || 0;
-      const sellRate = entry.sellRate || 0;
-      const costRate = entry.costRate || 0;
-      const plannedBonus = entry.plannedBonus || 0;
-
-      totalRevenue += forecastHours * sellRate;
-      totalCost += forecastHours * costRate;
-      totalBonuses += plannedBonus;
-    });
-
-    totalCost += totalBonuses;
-
-    // Calculate margin
-    const grossMargin = totalRevenue - totalCost;
-    const marginPercent = totalRevenue > 0 ? (grossMargin / totalRevenue) * 100 : 0;
-
-    return {
-      revenue: totalRevenue,
-      cost: totalCost,
-      bonuses: totalBonuses,
-      grossMargin,
-      marginPercent
-    };
-  }, [forecasts, users]);
+  const summary = calculateForecastTotals(data);
 
   return (
     <Card className="p-6 relative overflow-hidden">
@@ -98,11 +54,18 @@ export function ForecastSummaryCard({
             <p className="text-3xl font-bold text-gray-900">
               {formatCurrency(summary.cost)}
             </p>
-            {summary.bonuses > 0 && (
-              <p className="mt-2 text-sm text-purple-600">
-                Includes {formatCurrency(summary.bonuses)} in bonuses
-              </p>
-            )}
+            <div className="mt-2 space-y-1 text-sm text-purple-600">
+              {summary.bonuses > 0 && (
+                <p>
+                  Includes {formatCurrency(summary.bonuses)} in bonuses
+                </p>
+              )}
+              {summary.expenses > 0 && (
+                <p>
+                  Includes {formatCurrency(summary.expenses)} in expenses
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -117,7 +80,7 @@ export function ForecastSummaryCard({
               <h3 className="font-semibold">Gross Margin</h3>
             </div>
             <p className="text-3xl font-bold text-gray-900">
-              {formatCurrency(summary.grossMargin)}
+              {formatCurrency(summary.margin)}
             </p>
           </div>
         </div>

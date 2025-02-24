@@ -2,16 +2,28 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Table, TableHeader, TableBody, Th, Td } from '@/components/ui/Table';
 import { Badge } from '@/components/ui/Badge';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/Tooltip';
 import { EditableTimeCell } from '@/components/ui/EditableTimeCell';
-import { Users } from 'lucide-react';
-import { calculateLeaveHours } from '@/lib/utils/date';
+import { Users, Info } from 'lucide-react';
+import { cn } from '@/lib/utils/styles';
+import { getWorkingDaysForUser } from '@/lib/utils/date';
 import type { User } from '@/types';
+import { parseISO, startOfMonth, endOfMonth } from 'date-fns';
 
 interface EmployeeForecastTableProps {
   users: User[];
-  localData: Record<string, any>;
+  data: {
+    users: User[];
+    projects: Project[];
+    bonuses: any[];
+    leave: any[];
+    holidays: any[];
+    workingDays: number;
+    deltas: Record<string, any>;
+  };
   holidays: any[];
-  leaveData: any;
+  workingDays: number;
+  leaveHours: Record<string, number>;
   month: string;
   modifiedCells: Set<string>;
   onCellChange: (userId: string, field: string, value: number) => void;
@@ -19,14 +31,17 @@ interface EmployeeForecastTableProps {
 
 export function EmployeeForecastTable({
   users,
-  localData,
+  data,
   holidays,
-  leaveData,
+  workingDays,
+  leaveHours,
   month,
   modifiedCells,
   onCellChange
 }: EmployeeForecastTableProps) {
   const [editingCell, setEditingCell] = useState<string | null>(null);
+  const monthStart = startOfMonth(parseISO(month + '-01'));
+  const monthEnd = endOfMonth(monthStart);
 
   if (users.length === 0) return null;
 
@@ -64,18 +79,52 @@ export function EmployeeForecastTable({
         </TableHeader>
         <TableBody>
           {users.map(user => {
-            const userData = localData[user.id] || {
+            // Get base values from user
+            const baseValues = {
               hoursPerWeek: user.hoursPerWeek || 40,
               billablePercentage: user.estimatedBillablePercentage || 0,
-              sellRate: 0,
-              costRate: 0,
-              plannedBonus: 0,
+              plannedBonus: data.bonuses[user.id] ?? 0, // Use nullish coalescing to handle 0 values correctly
+              sellRate: 0, // Will be calculated from projects
+              sellRate: user.currentSellRate || 0,
               forecastHours: 0
             };
 
+            // Apply any deltas that exist
+            const deltas = data.deltas || {};
+            const userData = {
+              ...baseValues,
+              hoursPerWeek: deltas[`${user.id}_hoursPerWeek`]?.value ?? baseValues.hoursPerWeek,
+              billablePercentage: deltas[`${user.id}_billablePercentage`]?.value ?? baseValues.billablePercentage,
+              sellRate: deltas[`${user.id}_sellRate`]?.value ?? (user.currentSellRate ?? 0),
+              costRate: deltas[`${user.id}_costRate`]?.value ?? (user.currentCostRate ?? 0),
+              plannedBonus: deltas[`${user.id}_plannedBonus`]?.value ?? baseValues.plannedBonus,
+              forecastHours: deltas[`${user.id}_forecastHours`]?.value ?? baseValues.forecastHours
+            };
+
             return (
-              <tr key={user.id}>
-                <Td className="font-medium">{user.name}</Td>
+              <tr 
+                key={user.id}
+                className={cn(
+                  user.isPotential && "bg-amber-50/50"
+                )}
+              >
+                <Td className="font-medium">
+                  <div className="flex items-center gap-2">
+                    {user.name}
+                    {user.isPotential && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-4 w-4 text-amber-500" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Potential staff member - not yet hired</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
+                </Td>
                 <Td className="text-right p-0">
                   <EditableTimeCell
                     className="text-center"
@@ -85,6 +134,7 @@ export function EmployeeForecastTable({
                     isModified={modifiedCells.has(`${user.id}_hoursPerWeek`)}
                     onStartEdit={() => setEditingCell(`${user.id}-hoursPerWeek`)}
                     onEndEdit={() => setEditingCell(null)}
+                    onClear={() => onCellChange(user.id, 'hoursPerWeek', null, baseValues.hoursPerWeek)}
                   />
                 </Td>
                 <Td className="text-right p-0">
@@ -96,6 +146,7 @@ export function EmployeeForecastTable({
                     isModified={modifiedCells.has(`${user.id}_billablePercentage`)}
                     onStartEdit={() => setEditingCell(`${user.id}-billable`)}
                     onEndEdit={() => setEditingCell(null)}
+                    onClear={() => onCellChange(user.id, 'billablePercentage', null, baseValues.billablePercentage)}
                   />
                 </Td>
                 <Td className="text-right p-0">
@@ -107,6 +158,7 @@ export function EmployeeForecastTable({
                     isModified={modifiedCells.has(`${user.id}_sellRate`)}
                     onStartEdit={() => setEditingCell(`${user.id}-sellRate`)}
                     onEndEdit={() => setEditingCell(null)}
+                    onClear={() => onCellChange(user.id, 'sellRate', null, user.currentSellRate || 0)}
                   />
                 </Td>
                 <Td className="text-right p-0">
@@ -118,6 +170,7 @@ export function EmployeeForecastTable({
                     isModified={modifiedCells.has(`${user.id}_costRate`)}
                     onStartEdit={() => setEditingCell(`${user.id}-costRate`)}
                     onEndEdit={() => setEditingCell(null)}
+                    onClear={() => onCellChange(user.id, 'costRate', null, user.currentCostRate || 0)}
                   />
                 </Td>
                 <Td className="text-center">
@@ -127,26 +180,8 @@ export function EmployeeForecastTable({
                 </Td>
                 <Td className="text-center">
                   {(() => {
-                    if (!leaveData?.leave) return <Badge variant="secondary">No Data</Badge>;
-
-                    // Get first day of target month
-                    const monthStart = new Date(month + '-01');
-                    const monthEnd = new Date(monthStart);
-                    monthEnd.setMonth(monthEnd.getMonth() + 1);
-                    monthEnd.setDate(0);
-
-                    const userLeave = leaveData.leave.filter(leave => 
-                      leave.employeeId === user.xeroEmployeeId &&
-                      leave.status === 'SCHEDULED' &&
-                      new Date(leave.startDate) <= monthEnd &&
-                      new Date(leave.endDate) >= monthStart
-                    );
-                    
-                    if (userLeave.length === 0) return <Badge variant="secondary">None</Badge>;
-                    
-                    const totalHours = userLeave.reduce((sum, leave) => 
-                      sum + calculateLeaveHours(leave, monthStart, monthEnd), 0
-                    );
+                    const totalHours = leaveHours[user.id] || 0;
+                    if (totalHours === 0) return <Badge variant="secondary">None</Badge>;
                     
                     return (
                       <Badge variant="warning">
@@ -164,18 +199,67 @@ export function EmployeeForecastTable({
                     isModified={modifiedCells.has(`${user.id}_plannedBonus`)}
                     onStartEdit={() => setEditingCell(`${user.id}-bonus`)}
                     onEndEdit={() => setEditingCell(null)}
+                    onClear={() => onCellChange(user.id, 'plannedBonus', null, data.bonuses[user.id] ?? 0)}
                   />
                 </Td>
                 <Td className="text-right p-0">
-                  <EditableTimeCell
-                    className="text-center"
-                    value={userData.forecastHours}
-                    onChange={(value) => onCellChange(user.id, 'forecastHours', value)}
-                    isEditing={editingCell === `${user.id}-forecast`}
-                    isModified={modifiedCells.has(`${user.id}_forecastHours`)}
-                    onStartEdit={() => setEditingCell(`${user.id}-forecast`)}
-                    onEndEdit={() => setEditingCell(null)}
-                  />
+                  <div className="py-2 text-center">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center justify-center gap-1 cursor-help">
+                            {(() => {
+                      // Get month boundaries
+                      const monthStart = startOfMonth(parseISO(month + '-01'));
+                      const monthEnd = endOfMonth(monthStart);
+
+                      // Calculate effective working days for this user
+                      const effectiveWorkingDays = getWorkingDaysForUser(
+                        monthStart,
+                        monthEnd,
+                        user.startDate,
+                        user.endDate
+                      );
+
+                      // Calculate forecast hours based on formula
+                      const baseHours = (userData.hoursPerWeek / 5) * effectiveWorkingDays;
+                      const billableHours = baseHours * (userData.billablePercentage / 100);
+                      const publicHolidayHours = holidays.length * 8;
+                      const userLeaveHours = leaveHours[user.id] || 0;
+                      const forecastHours = Math.max(0, billableHours - publicHolidayHours - userLeaveHours);
+
+                      return forecastHours.toFixed(1);
+                            })()}
+                            <Info className="h-4 w-4 text-gray-400" />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-sm">
+                          <div className="space-y-2 p-1">
+                            <p className="font-medium">Forecast Hours Calculation:</p>
+                            <div className="space-y-1 text-sm">
+                              <p>1. Base Hours = ({userData.hoursPerWeek} hrs/week ÷ 5) × {workingDays} working days</p>
+                              <p>2. Billable Hours = Base Hours × {userData.billablePercentage}% billable</p>
+                              <p>3. Subtract the following:</p>
+                              <ul className="list-disc pl-4">
+                                <li>Public Holidays: {holidays.length * 8} hrs</li>
+                                <li>Planned Leave: {leaveHours[user.id] || 0} hrs</li>
+                                {user.startDate && new Date(user.startDate) > monthStart && (
+                                  <li>Start Date Pro-rata: {
+                                    ((new Date(user.startDate).setHours(0,0,0,0) - monthStart.setHours(0,0,0,0)) / (1000 * 60 * 60 * 24) * (userData.hoursPerWeek / 5)).toFixed(1)
+                                  } hrs</li>
+                                )}
+                                {user.endDate && new Date(user.endDate) < monthEnd && (
+                                  <li>End Date Pro-rata: {
+                                    ((monthEnd.setHours(23,59,59,999) - new Date(user.endDate).setHours(23,59,59,999)) / (1000 * 60 * 60 * 24) * (userData.hoursPerWeek / 5)).toFixed(1)
+                                  } hrs</li>
+                                )}
+                              </ul>
+                            </div>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                 </Td>
               </tr>
             );

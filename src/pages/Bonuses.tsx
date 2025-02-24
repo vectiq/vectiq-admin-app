@@ -74,12 +74,15 @@ export default function Bonuses() {
   // Filter users based on team management status
   const availableUsers = users.filter(user => {
     if (currentUser?.role === 'admin') {
+      // Only allow employees to receive bonuses
+      const isEmployee = user.employeeType === 'employee';
+      
       if (isTeamManager) {
         // Admin who is also team manager only sees their team members
-        return user.teamId === managedTeam?.id;
+        return isEmployee && user.teamId === managedTeam?.id;
       }
       // Regular admin sees all users
-      return true;
+      return isEmployee;
     }
     return false;
   });
@@ -370,7 +373,7 @@ export default function Bonuses() {
                       )}
                     </div>
                   ) : (
-                    'Select Employee'
+                    'Select employee'
                   )}
                 </SelectTrigger>
                 <SelectContent>

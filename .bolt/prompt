@@ -1,1 +1,3 @@
-Please clarify your understanding of the prompt and validate with me before you make any changes. Be succinct but explanatory in your validations, but when you actually change code, don't add explanatory text.
+Please clarify your understanding of the prompt and validate with me before you make any changes. 
+
+I do not like local storage as a general rule. Try not to use caching mechanisms like useMemo unless necessary, and apply the principle of using live data from firestore via reactquery.
