@@ -111,7 +111,6 @@ export async function generateOvertimeReport(filters: { startDate: string; endDa
           };
         })
         .sort((a, b) => b.hours - a.hours);
-
       return {
         userId: user.id,
         userName: user.name,

@@ -59,30 +59,56 @@ export async function createPayRun(calendarId: string): Promise<PayRun> {
   }
 }
 export async function syncPayRun(): Promise<void> {
-  const functions = getFunctions();
-  const syncPayRun = httpsCallable(functions, "syncPayRun");
-  await syncPayRun();
+  try {
+    const functions = getFunctions();
+    const syncPayRunFunction = httpsCallable(functions, "syncPayRun");
+    const result = await syncPayRunFunction();
+    
+    if (!result.data) {
+      throw new Error('Sync failed - no response from server');
+    }
+    
+    // Ensure we have a valid response
+    if (typeof result.data !== 'object') {
+      throw new Error('Invalid response from sync operation');
+    }
+
+  } catch (error) {
+    console.error("Error syncing pay run:", {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error'
+    });
+    throw error;
+  }
 }
 export async function getPayRun(month: string): Promise<PayRun[]> {
   try {
-    // Create query to find all documents where id starts with YYYYMM-
     const payRunRef = collection(db, COLLECTION);
-    const q = query(
-      payRunRef,
-      where("__name__", ">=", `${month}-`),
-      where("__name__", "<", `${month}-\uf8ff`),
-      orderBy("__name__")
-    );
+    const q = query(payRunRef, orderBy("PayRunPeriodStartDate", "desc"));
 
     const querySnapshot = await getDocs(q);
-
+    
     if (querySnapshot.empty) {
       return [];
     }
 
-    return querySnapshot.docs.map((doc) => doc.data() as PayRun);
+    const payRuns = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      // Ensure all required fields are present
+      if (!data.PayRunID || !data.PayRunPeriodStartDate || !data.PayRunStatus) {
+        console.warn('Invalid pay run data:', data);
+        return null;
+      }
+      return data as PayRun;
+    }).filter(Boolean) as PayRun[];
+
+    return payRuns;
   } catch (error) {
-    console.error("Error fetching pay runs:", error);
+    console.error("Error fetching pay runs:", {
+      error,
+      month,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error'
+    });
     throw error;
   }
 }
@@ -121,7 +147,17 @@ export async function getPayRunStats(month: string): Promise<{
   averageNetPay: number;
 }> {
   try {
-    const payRuns = await getPayRun(month);
+    // Normalize month format
+    let normalizedMonth: string;
+    if (month.length === 6) { // Format YYYYMM
+      normalizedMonth = `${month.slice(0, 4)}-${month.slice(4, 6)}`;
+    } else if (/^\d{4}-\d{2}$/.test(month)) { // Format YYYY-MM
+      normalizedMonth = month;
+    } else {
+      throw new Error(`Invalid month format: ${month}. Expected YYYY-MM or YYYYMM`);
+    }
+
+    const payRuns = await getPayRun(normalizedMonth);
 
     if (payRuns.length === 0) {
       return {
@@ -158,7 +194,11 @@ export async function getPayRunStats(month: string): Promise<{
         stats.totalEmployees > 0 ? stats.totalNetPay / stats.totalEmployees : 0,
     };
   } catch (error) {
-    console.error("Error calculating pay run stats:", error);
+    console.error("Error calculating pay run stats:", {
+      error,
+      month,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error'
+    });
     throw error;
   }
 }
