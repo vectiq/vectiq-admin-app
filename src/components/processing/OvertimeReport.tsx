@@ -36,13 +36,14 @@ export function OvertimeReport({ selectedDate }: OvertimeReportProps) {
     [payRuns]
   );
 
+
   useEffect(() => {
-    async function checkSubmission() {
+    async function fetchSubmissionStatus() { // Renamed to avoid conflict
       const submitted = await checkSubmission(currentMonth);
       setIsSubmitted(submitted);
     }
-    checkSubmission();
-  }, [currentMonth, checkSubmission]);
+    fetchSubmissionStatus();
+  }, [currentMonth, checkSubmission]); // Keep dependencies intact
 
   const handleSubmit = async () => {
     if (!data) return;

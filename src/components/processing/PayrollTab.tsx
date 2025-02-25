@@ -7,7 +7,6 @@ import { DollarSign, Plus, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/Select';
 import { useQueryClient } from '@tanstack/react-query';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { syncPayRun } from '@/lib/services/payroll';
 
 export function PayrollTab() {
