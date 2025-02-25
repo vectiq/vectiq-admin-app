@@ -61,7 +61,7 @@ export async function createPayRun(calendarId: string): Promise<PayRun> {
 export async function syncPayRun(): Promise<void> {
   const functions = getFunctions();
   const syncPayRun = httpsCallable(functions, "syncPayRun");
-  const response = await syncPayRun();
+  await syncPayRun();
 }
 export async function getPayRun(month: string): Promise<PayRun[]> {
   try {
