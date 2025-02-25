@@ -6,7 +6,7 @@ import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { DollarSign, Plus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/Select';
-import { createPayRun } from '@/lib/services/payroll';
+import { syncPayRun } from '@/lib/services/payroll';
 
 export function PayrollTab() {
   const [selectedCalendar, setSelectedCalendar] = useState<string>('');
@@ -99,6 +99,11 @@ export function PayrollTab() {
                   <Plus className="h-4 w-4 mr-2" />
                 )}
                 Create Pay Run
+              </Button>
+              <Button
+                onClick={syncPayRun}
+              >
+                Sync Pay Run
               </Button>
             </div>
           </div>
