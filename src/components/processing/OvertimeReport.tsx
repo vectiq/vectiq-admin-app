@@ -2,15 +2,11 @@ import { Card } from '@/components/ui/Card';
 import { usePayroll } from '@/lib/hooks/usePayroll';
 import { useOvertime } from '@/lib/hooks/useOvertime';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
-import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
+import { format,  startOfMonth, endOfMonth } from 'date-fns';
 import { getWorkingDaysForMonth } from '@/lib/utils/workingDays';
-import type { OvertimeReportEntry } from '@/types';
-import { Table, TableHeader, TableBody, Th, Td } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/Select';
-import { Badge, BadgeVariant } from '@/components/ui/Badge';
-import { useClients } from '@/lib/hooks/useClients';
-import { cn } from '@/lib/utils/styles';
+import { Badge  } from '@/components/ui/Badge';
 import { useState, useEffect, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 
@@ -36,13 +32,14 @@ export function OvertimeReport({ selectedDate }: OvertimeReportProps) {
     [payRuns]
   );
 
+
   useEffect(() => {
-    async function checkSubmission() {
+    async function fetchSubmissionStatus() { 
       const submitted = await checkSubmission(currentMonth);
       setIsSubmitted(submitted);
     }
-    checkSubmission();
-  }, [currentMonth, checkSubmission]);
+    fetchSubmissionStatus();
+  }, [currentMonth, checkSubmission]); // Keep dependencies intact
 
   const handleSubmit = async () => {
     if (!data) return;

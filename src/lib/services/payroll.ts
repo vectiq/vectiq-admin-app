@@ -1,45 +1,48 @@
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { db } from '@/lib/firebase';
-import type { PayRun, PayrollCalendar, XeroPayItem } from '@/types';
+import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { db } from "@/lib/firebase";
+import type { PayRun, PayrollCalendar, XeroPayItem } from "@/types";
 
-const COLLECTION = 'xeroPayRuns';
-const CALENDARS_COLLECTION = 'xeroPayCalendars';
-const PAY_ITEMS_COLLECTION = 'xeroPayItems';
+const COLLECTION = "xeroPayRuns";
+const CALENDARS_COLLECTION = "xeroPayCalendars";
+const PAY_ITEMS_COLLECTION = "xeroPayItems";
 
 export async function getPayrollCalendars(): Promise<PayrollCalendar[]> {
   try {
     const calendarRef = collection(db, CALENDARS_COLLECTION);
     const querySnapshot = await getDocs(calendarRef);
-    
+
     if (querySnapshot.empty) {
       return [];
     }
 
     return querySnapshot.docs
-      .map(doc => doc.data() as PayrollCalendar)
-      .sort((a, b) => new Date(b.StartDate).getTime() - new Date(a.StartDate).getTime());
+      .map((doc) => doc.data() as PayrollCalendar)
+      .sort(
+        (a, b) =>
+          new Date(b.StartDate).getTime() - new Date(a.StartDate).getTime()
+      );
   } catch (error) {
-    console.error('Error fetching payroll calendars:', error);
+    console.error("Error fetching payroll calendars:", error);
     throw error;
   }
 }
 
 export async function getPayItems(): Promise<XeroPayItem[]> {
   try {
-    const payItemsRef = collection(db, 'xeroPayItems');
+    const payItemsRef = collection(db, "xeroPayItems");
     const querySnapshot = await getDocs(payItemsRef);
-    
+
     if (querySnapshot.empty) {
       return [];
     }
 
-    return querySnapshot.docs.map(doc => ({
+    return querySnapshot.docs.map((doc) => ({
       id: doc.id,
-      ...doc.data()
+      ...doc.data(),
     })) as XeroPayItem[];
   } catch (error) {
-    console.error('Error fetching pay items:', error);
+    console.error("Error fetching pay items:", error);
     throw error;
   }
 }
@@ -47,25 +50,41 @@ export async function getPayItems(): Promise<XeroPayItem[]> {
 export async function createPayRun(calendarId: string): Promise<PayRun> {
   try {
     const functions = getFunctions();
-    const createXeroPayRun = httpsCallable(functions, 'createXeroPayRun');
+    const createXeroPayRun = httpsCallable(functions, "createXeroPayRun");
     const response = await createXeroPayRun({ calendarId });
-    return response.data;
+    return response.data as PayRun;
   } catch (error) {
-    console.error('Error creating pay run:', error);
+    console.error("Error creating pay run:", error);
     throw error;
   }
 }
+export async function syncPayRun(): Promise<void> {
+  try {
+    const functions = getFunctions();
+    const syncPayRunFunction = httpsCallable(functions, "syncPayRun");
+    const result = await syncPayRunFunction();
+    
+    if (!result.data) {
+      throw new Error('Sync failed - no response from server');
+    }
+    
+    // Ensure we have a valid response
+    if (typeof result.data !== 'object') {
+      throw new Error('Invalid response from sync operation');
+    }
 
+  } catch (error) {
+    console.error("Error syncing pay run:", {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error'
+    });
+    throw error;
+  }
+}
 export async function getPayRun(month: string): Promise<PayRun[]> {
   try {
-    // Create query to find all documents where id starts with YYYYMM-
     const payRunRef = collection(db, COLLECTION);
-    const q = query(
-      payRunRef,
-      where('__name__', '>=', `${month}-`),
-      where('__name__', '<', `${month}-\uf8ff`),
-      orderBy('__name__')
-    );
+    const q = query(payRunRef, orderBy("PayRunPeriodStartDate", "desc"));
 
     const querySnapshot = await getDocs(q);
     
@@ -73,9 +92,23 @@ export async function getPayRun(month: string): Promise<PayRun[]> {
       return [];
     }
 
-    return querySnapshot.docs.map(doc => doc.data() as PayRun);
+    const payRuns = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      // Ensure all required fields are present
+      if (!data.PayRunID || !data.PayRunPeriodStartDate || !data.PayRunStatus) {
+        console.warn('Invalid pay run data:', data);
+        return null;
+      }
+      return data as PayRun;
+    }).filter(Boolean) as PayRun[];
+
+    return payRuns;
   } catch (error) {
-    console.error('Error fetching pay runs:', error);
+    console.error("Error fetching pay runs:", {
+      error,
+      month,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error'
+    });
     throw error;
   }
 }
@@ -91,7 +124,7 @@ export async function getPayRunHistory(months: number = 12): Promise<PayRun[]> {
 
     // Convert to array and sort by date descending
     const payRuns = payRunDocs.docs
-      .map(doc => doc.data() as PayRun)
+      .map((doc) => doc.data() as PayRun)
       .sort((a, b) => {
         const dateA = new Date(a.PayRunPeriodStartDate);
         const dateB = new Date(b.PayRunPeriodStartDate);
@@ -101,7 +134,7 @@ export async function getPayRunHistory(months: number = 12): Promise<PayRun[]> {
     // Return only the specified number of months
     return payRuns.slice(0, months);
   } catch (error) {
-    console.error('Error fetching pay run history:', error);
+    console.error("Error fetching pay run history:", error);
     throw error;
   }
 }
@@ -114,42 +147,58 @@ export async function getPayRunStats(month: string): Promise<{
   averageNetPay: number;
 }> {
   try {
-    const payRuns = await getPayRun(month);
-    
+    // Normalize month format
+    let normalizedMonth: string;
+    if (month.length === 6) { // Format YYYYMM
+      normalizedMonth = `${month.slice(0, 4)}-${month.slice(4, 6)}`;
+    } else if (/^\d{4}-\d{2}$/.test(month)) { // Format YYYY-MM
+      normalizedMonth = month;
+    } else {
+      throw new Error(`Invalid month format: ${month}. Expected YYYY-MM or YYYYMM`);
+    }
+
+    const payRuns = await getPayRun(normalizedMonth);
+
     if (payRuns.length === 0) {
       return {
         totalEmployees: 0,
         totalWages: 0,
         totalTax: 0,
         totalSuper: 0,
-        averageNetPay: 0
+        averageNetPay: 0,
       };
     }
 
     // Aggregate stats across all pay runs for the month
-    const stats = payRuns.reduce((acc, payRun) => {
-      acc.totalEmployees += payRun.Payslips.length;
-      acc.totalWages += payRun.Wages;
-      acc.totalTax += payRun.Tax;
-      acc.totalSuper += payRun.Super;
-      acc.totalNetPay += payRun.NetPay;
-      return acc;
-    }, {
-      totalEmployees: 0,
-      totalWages: 0,
-      totalTax: 0,
-      totalSuper: 0,
-      totalNetPay: 0
-    });
+    const stats = payRuns.reduce(
+      (acc, payRun) => {
+        acc.totalEmployees += payRun.Payslips.length;
+        acc.totalWages += payRun.Wages;
+        acc.totalTax += payRun.Tax;
+        acc.totalSuper += payRun.Super;
+        acc.totalNetPay += payRun.NetPay;
+        return acc;
+      },
+      {
+        totalEmployees: 0,
+        totalWages: 0,
+        totalTax: 0,
+        totalSuper: 0,
+        totalNetPay: 0,
+      }
+    );
 
     return {
       ...stats,
-      averageNetPay: stats.totalEmployees > 0 
-        ? stats.totalNetPay / stats.totalEmployees 
-        : 0
+      averageNetPay:
+        stats.totalEmployees > 0 ? stats.totalNetPay / stats.totalEmployees : 0,
     };
   } catch (error) {
-    console.error('Error calculating pay run stats:', error);
+    console.error("Error calculating pay run stats:", {
+      error,
+      month,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error'
+    });
     throw error;
   }
 }

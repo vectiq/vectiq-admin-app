@@ -3,14 +3,17 @@ import { Card } from '@/components/ui/Card';
 import { PayRunCard } from '@/components/payroll/PayRunCard';
 import { usePayroll } from '@/lib/hooks/usePayroll';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
-import { DollarSign, Plus, Loader2 } from 'lucide-react';
+import { DollarSign, Plus, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/Select';
-import { createPayRun } from '@/lib/services/payroll';
+import { useQueryClient } from '@tanstack/react-query';
+import { syncPayRun } from '@/lib/services/payroll';
 
 export function PayrollTab() {
   const [selectedCalendar, setSelectedCalendar] = useState<string>('');
   const [isCreating, setIsCreating] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const queryClient = useQueryClient();
   const { payRuns, calendars, isLoading, createPayRun } = usePayroll({
     selectedDate: new Date(),
     includeStats: true,
@@ -53,6 +56,20 @@ export function PayrollTab() {
       setIsCreating(false);
     }
   };
+  const handleSyncPayRun = async () => {
+    try {
+      setIsSyncing(true);
+      await syncPayRun();
+      // Invalidate pay runs query to trigger a refresh
+      await queryClient.invalidateQueries({ queryKey: ['payRun'] });
+    } catch (error) {
+      console.error('Failed to sync pay run:', error);
+      alert('Failed to sync pay run. Please try again.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   if (isLoading) {
     return <LoadingScreen />;
   }
@@ -99,6 +116,17 @@ export function PayrollTab() {
                   <Plus className="h-4 w-4 mr-2" />
                 )}
                 Create Pay Run
+              </Button>
+              <Button
+                onClick={handleSyncPayRun}
+                disabled={isSyncing}
+              >
+                {isSyncing ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                Sync Pay Run
               </Button>
             </div>
           </div>

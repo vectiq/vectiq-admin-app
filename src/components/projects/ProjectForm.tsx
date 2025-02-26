@@ -117,6 +117,7 @@ export function ProjectForm({ project, onSubmit, onCancel }: ProjectFormProps) {
         <FormField label="Client">
           <Select
             value={watch('clientId')}
+            disabled={project != null}
             onValueChange={(value) => {
               setValue('clientId', value);
               // Reset dependent fields

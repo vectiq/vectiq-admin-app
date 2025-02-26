@@ -162,11 +162,12 @@ export interface TestDataOptions {
 export interface XeroPayItem {
   EarningsRateID: string;
   Name: string;
-  EarningsType: string;
-  RateType: string;
-  TypeOfUnits: string;
-  IsExemptFromTax: boolean;
-  IsReportableAsW1: boolean;
+  EarningsType?: string;
+  RateType?: string;
+  TypeOfUnits?: string;
+  IsExemptFromTax?: boolean;
+  IsReportableAsW1?: boolean;
+  id?: string; // Added to match usage in getPayItems
 }
 
 export interface PayrollCalendar {
