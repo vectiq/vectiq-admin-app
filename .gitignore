@@ -31,3 +31,5 @@ yarn-error.log*
 # Editor
 .vscode/
 .idea/
+
+tmp/

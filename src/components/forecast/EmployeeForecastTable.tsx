@@ -84,7 +84,6 @@ export function EmployeeForecastTable({
               hoursPerWeek: user.hoursPerWeek || 40,
               billablePercentage: user.estimatedBillablePercentage || 0,
               plannedBonus: data.bonuses[user.id] ?? 0, // Use nullish coalescing to handle 0 values correctly
-              sellRate: 0, // Will be calculated from projects
               sellRate: user.currentSellRate || 0,
               forecastHours: 0
             };
