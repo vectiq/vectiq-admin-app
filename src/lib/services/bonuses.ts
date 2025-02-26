@@ -12,8 +12,8 @@ import {
   serverTimestamp,
   writeBatch,
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { db, functions } from '@/lib/firebase';
+import { httpsCallable } from 'firebase/functions';
 import { format } from 'date-fns';
 import type { Bonus } from '@/types';
 
@@ -72,7 +72,6 @@ export async function deleteBonus(id: string): Promise<void> {
 }
 
 export async function processBonus(bonuses: Bonus[], payRunId: string, payItemId: string): Promise<void> {
-  const functions = getFunctions();
   const processBonuses = httpsCallable(functions, 'processBonuses');
 
   // Get user documents to lookup Xero Employee IDs

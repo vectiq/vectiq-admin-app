@@ -1,8 +1,8 @@
 import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, functions } from '@/lib/firebase';
 import { format, parseISO } from 'date-fns';
 import { getWorkingDaysInPeriod } from '@/lib/utils/date';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { httpsCallable } from 'firebase/functions';
 import type { OvertimeReportData, TimeEntry, Approval, User, Project } from '@/types';
 
 export async function generateOvertimeReport(filters: { startDate: string; endDate: string }): Promise<OvertimeReportData> {
@@ -167,7 +167,6 @@ export async function submitOvertime(
   }));
 
   // Call Firebase function to process overtime
-  const functions = getFunctions();
   const processOvertime = httpsCallable(functions, 'processOvertime');
   await processOvertime({ 
     overtimeEntries: overtimeEntries,

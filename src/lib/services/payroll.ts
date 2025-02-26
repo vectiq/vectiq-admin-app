@@ -1,6 +1,6 @@
 import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { db } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
+import { db, functions } from "@/lib/firebase";
 import type { PayRun, PayrollCalendar, XeroPayItem } from "@/types";
 
 const COLLECTION = "xeroPayRuns";
@@ -49,7 +49,6 @@ export async function getPayItems(): Promise<XeroPayItem[]> {
 
 export async function createPayRun(calendarId: string): Promise<PayRun> {
   try {
-    const functions = getFunctions();
     const createXeroPayRun = httpsCallable(functions, "createXeroPayRun");
     const response = await createXeroPayRun({ calendarId });
     return response.data as PayRun;
@@ -60,7 +59,6 @@ export async function createPayRun(calendarId: string): Promise<PayRun> {
 }
 export async function syncPayRun(): Promise<void> {
   try {
-    const functions = getFunctions();
     const syncPayRunFunction = httpsCallable(functions, "syncPayRun");
     const result = await syncPayRunFunction();
 

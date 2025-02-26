@@ -1,6 +1,6 @@
 import { collection, getDocs, query, where, doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { db } from '@/lib/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '@/lib/firebase';
 import { format, eachDayOfInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import type {
   ProcessingData,
@@ -200,14 +200,12 @@ async function generateTimesheetPDF(project: ProcessingProject, month: string): 
  * This is the main function that should be called to create invoices.
  */
 export async function generateInvoice(project: ProcessingProject): Promise<XeroInvoiceResponse> {
-  const functions = getFunctions();
   const createInvoice = httpsCallable<{ invoiceData: XeroInvoice }, XeroInvoiceResponse>(
     functions,
     'createXeroInvoice'
   );
 
   try {
-    const functions = getFunctions();
     const createXeroInvoice = httpsCallable<{ invoiceData: XeroInvoice }, XeroInvoiceResponse>(
       functions,
       'createXeroInvoice'
@@ -306,7 +304,6 @@ export async function generateInvoice(project: ProcessingProject): Promise<XeroI
  * This is an internal helper function used by generateInvoice.
  */
 async function createInvoiceInXero(project: ProcessingProject): Promise<XeroInvoiceResponse> {
-  const functions = getFunctions();
   const createInvoice = httpsCallable<{ invoiceData: XeroInvoice }, XeroInvoiceResponse>(
     functions,
     'createXeroInvoice'
