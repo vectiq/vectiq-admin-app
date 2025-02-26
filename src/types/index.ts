@@ -53,7 +53,7 @@ export interface User {
   employeeType: 'employee' | 'contractor' | 'company';
   teamId?: string;
   xeroEmployeeId?: string;
-  xeroPayrollId?: string;
+  xeroPayCalendarId?: string;
   startDate: string;
   endDate?: string;
   isPotential?: boolean;
