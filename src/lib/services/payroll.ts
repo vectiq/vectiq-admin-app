@@ -1,6 +1,6 @@
 import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { db } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
+import { db, functions } from "@/lib/firebase";
 import type { PayRun, PayrollCalendar, XeroPayItem } from "@/types";
 
 const COLLECTION = "xeroPayRuns";
@@ -49,7 +49,6 @@ export async function getPayItems(): Promise<XeroPayItem[]> {
 
 export async function createPayRun(calendarId: string): Promise<PayRun> {
   try {
-    const functions = getFunctions();
     const createXeroPayRun = httpsCallable(functions, "createXeroPayRun");
     const response = await createXeroPayRun({ calendarId });
     return response.data as PayRun;
@@ -60,55 +59,55 @@ export async function createPayRun(calendarId: string): Promise<PayRun> {
 }
 export async function syncPayRun(): Promise<void> {
   try {
-    const functions = getFunctions();
     const syncPayRunFunction = httpsCallable(functions, "syncPayRun");
     const result = await syncPayRunFunction();
-    
+
     if (!result.data) {
-      throw new Error('Sync failed - no response from server');
-    }
-    
-    // Ensure we have a valid response
-    if (typeof result.data !== 'object') {
-      throw new Error('Invalid response from sync operation');
+      throw new Error("Sync failed - no response from server");
     }
 
+    // Ensure we have a valid response
+    if (typeof result.data !== "object") {
+      throw new Error("Invalid response from sync operation");
+    }
   } catch (error) {
     console.error("Error syncing pay run:", {
       error,
-      errorMessage: error instanceof Error ? error.message : 'Unknown error'
+      errorMessage: error instanceof Error ? error.message : "Unknown error",
     });
     throw error;
   }
 }
-export async function getPayRun(month: string): Promise<PayRun[]> {
+
+export async function getPayRun(
+  month?: string,
+  status?: string
+): Promise<PayRun[]> {
   try {
+    // Create query to find all documents where id starts with YYYYMM-
     const payRunRef = collection(db, COLLECTION);
-    const q = query(payRunRef, orderBy("PayRunPeriodStartDate", "desc"));
+    const constraints = [
+      month ? where("__name__", ">=", `${month}-`) : undefined,
+      month ? where("__name__", "<", `${month}-\uf8ff`) : undefined,
+      status ? where("PayRunStatus", "==", status) : undefined,
+    ];
+    const q = query(
+      payRunRef,
+      ...constraints.filter((c) => c !== undefined),
+      orderBy("__name__")
+    );
 
     const querySnapshot = await getDocs(q);
-    
     if (querySnapshot.empty) {
       return [];
     }
 
-    const payRuns = querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      // Ensure all required fields are present
-      if (!data.PayRunID || !data.PayRunPeriodStartDate || !data.PayRunStatus) {
-        console.warn('Invalid pay run data:', data);
-        return null;
-      }
-      return data as PayRun;
-    }).filter(Boolean) as PayRun[];
-
-    return payRuns;
-  } catch (error) {
-    console.error("Error fetching pay runs:", {
-      error,
-      month,
-      errorMessage: error instanceof Error ? error.message : 'Unknown error'
+    console.log(`${status}: ${querySnapshot.docs.length}`);
+    return querySnapshot.docs.map((doc) => {
+      return doc.data() as PayRun;
     });
+  } catch (error) {
+    console.error("Error fetching pay runs:", error);
     throw error;
   }
 }
@@ -149,12 +148,16 @@ export async function getPayRunStats(month: string): Promise<{
   try {
     // Normalize month format
     let normalizedMonth: string;
-    if (month.length === 6) { // Format YYYYMM
+    if (month.length === 6) {
+      // Format YYYYMM
       normalizedMonth = `${month.slice(0, 4)}-${month.slice(4, 6)}`;
-    } else if (/^\d{4}-\d{2}$/.test(month)) { // Format YYYY-MM
+    } else if (/^\d{4}-\d{2}$/.test(month)) {
+      // Format YYYY-MM
       normalizedMonth = month;
     } else {
-      throw new Error(`Invalid month format: ${month}. Expected YYYY-MM or YYYYMM`);
+      throw new Error(
+        `Invalid month format: ${month}. Expected YYYY-MM or YYYYMM`
+      );
     }
 
     const payRuns = await getPayRun(normalizedMonth);
@@ -197,7 +200,7 @@ export async function getPayRunStats(month: string): Promise<{
     console.error("Error calculating pay run stats:", {
       error,
       month,
-      errorMessage: error instanceof Error ? error.message : 'Unknown error'
+      errorMessage: error instanceof Error ? error.message : "Unknown error",
     });
     throw error;
   }
