@@ -14,7 +14,7 @@ export function PayrollTab() {
   const [isCreating, setIsCreating] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const queryClient = useQueryClient();
-  const { payRuns, calendars, isLoading, createPayRun } = usePayroll({
+  const { calendars, isLoading, createPayRun, draftPayRuns, postedPayRuns } = usePayroll({
     selectedDate: new Date(),
     includeStats: true,
     onPayRunCreated: () => {
@@ -26,13 +26,12 @@ export function PayrollTab() {
   // Filter out calendars that already have draft pay runs
   const availableCalendars = useMemo(() => {
     const draftPayRunCalendarIds = new Set(
-      payRuns
-        .filter(payRun => payRun.PayRunStatus === 'DRAFT')
+      draftPayRuns
         .map(payRun => payRun.PayrollCalendarID)
     );
     
     return calendars.filter(calendar => !draftPayRunCalendarIds.has(calendar.PayrollCalendarID));
-  }, [calendars, payRuns]);
+  }, [calendars, draftPayRuns]);
 
   // Helper function to get calendar info
   const getCalendarInfo = (payRun: any) => {
@@ -132,8 +131,7 @@ export function PayrollTab() {
           </div>
           
           <div className="space-y-4">
-            {payRuns
-              .filter(payRun => payRun.PayRunStatus === 'DRAFT')
+            {draftPayRuns
               .map((payRun) => {
                 const calendar = getCalendarInfo(payRun);
                 return (
@@ -146,7 +144,7 @@ export function PayrollTab() {
                 );
               })}
             
-            {payRuns.filter(payRun => payRun.PayRunStatus === 'DRAFT').length === 0 && (
+            {draftPayRuns.length === 0 && (
               <div className="text-center text-gray-500 py-8">
                 No draft pay runs found
               </div>
@@ -164,8 +162,7 @@ export function PayrollTab() {
           </div>
           
           <div className="divide-y divide-gray-200">
-            {payRuns
-              .filter(payRun => payRun.PayRunStatus === 'POSTED')
+            {postedPayRuns
               .map((payRun) => {
                 const calendar = getCalendarInfo(payRun);
                 return (
@@ -176,7 +173,7 @@ export function PayrollTab() {
                     calendarType={calendar?.type}
                   />
                 );
-              })}
+              }).reverse()}
           </div>
         </div>
       </Card>
