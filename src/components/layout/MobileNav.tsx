@@ -20,8 +20,9 @@ export function MobileNav() {
   // Filter navigation items based on user role
   const allowedItems = useMemo(() => 
     navigationItems.filter(item => 
-      item.roles.includes(currentUser?.role || 'user') && 
-      (!isTeamManager || item.allowTeamManager)
+      item.roles.includes(currentUser?.role || 'user') &&
+      (!isTeamManager || item.allowTeamManager) &&
+      (!item.teamManagerOnly || isTeamManager)
     ),
     [currentUser?.role, isTeamManager]
   );

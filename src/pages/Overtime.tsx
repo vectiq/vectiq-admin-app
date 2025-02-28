@@ -1,59 +1,40 @@
-import { Card } from '@/components/ui/Card';
-import { usePayroll } from '@/lib/hooks/usePayroll';
+import { useState } from 'react';
+import { format, startOfMonth, addMonths, subMonths, endOfMonth } from 'date-fns';
 import { useOvertime } from '@/lib/hooks/useOvertime';
-import { LoadingScreen } from '@/components/ui/LoadingScreen';
-import { format,  startOfMonth, endOfMonth } from 'date-fns';
+import { useUsers } from '@/lib/hooks/useUsers';
 import { getWorkingDaysForMonth } from '@/lib/utils/workingDays';
+import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Badge  } from '@/components/ui/Badge';
-import { useState, useEffect, useMemo } from 'react';
+import { Badge } from '@/components/ui/Badge';
+import { Table, TableHeader, TableBody, Th, Td } from '@/components/ui/Table';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
+import { DateNavigation } from '@/components/ui/DateNavigation';
 import { Loader2 } from 'lucide-react';
 
-interface OvertimeReportProps {
-  selectedDate: Date;
-}
-
-export function OvertimeReport({ selectedDate }: OvertimeReportProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const currentMonth = format(selectedDate, 'MM-yyyy');
-  const workingDays = getWorkingDaysForMonth(format(selectedDate, 'yyyy-MM'));
-  const { data, isLoading, submitOvertime, checkSubmission } = useOvertime({
-    startDate: format(startOfMonth(selectedDate), 'yyyy-MM-dd'),
-    endDate: format(endOfMonth(selectedDate), 'yyyy-MM-dd')
+export default function Overtime() {
+  const [currentDate, setCurrentDate] = useState(startOfMonth(new Date()));
+  const { currentUser, managedTeam, isTeamManager } = useUsers();
+  const { users } = useUsers();
+  const workingDays = getWorkingDaysForMonth(format(currentDate, 'yyyy-MM'));
+  const { data, isLoading } = useOvertime({
+    startDate: format(startOfMonth(currentDate), 'yyyy-MM-dd'),
+    endDate: format(endOfMonth(currentDate), 'yyyy-MM-dd')
   });
 
+  const handlePrevious = () => setCurrentDate(subMonths(currentDate, 1));
+  const handleNext = () => setCurrentDate(addMonths(currentDate, 1));
+  const handleToday = () => setCurrentDate(startOfMonth(new Date()));
 
-  useEffect(() => {
-    async function fetchSubmissionStatus() { 
-      const submitted = await checkSubmission(currentMonth);
-      setIsSubmitted(submitted);
+  // Filter entries based on team manager status
+  const filteredEntries = data?.entries.filter(entry => {
+    if (isTeamManager) {
+      // Team managers only see entries from their team members
+      const user = users.find(u => u.id === entry.userId);
+      return user?.teamId === managedTeam?.id;
     }
-    fetchSubmissionStatus();
-  }, [currentMonth, checkSubmission]); // Keep dependencies intact
-
-  const handleSubmit = async () => {
-    if (!data) return;
-    
-    const startDate = format(startOfMonth(selectedDate), 'yyyy-MM-dd');
-    const endDate = format(endOfMonth(selectedDate), 'yyyy-MM-dd');
-    
-    try {
-      setIsSubmitting(true);
-      await submitOvertime({
-        data,
-        startDate,
-        endDate,
-        month: currentMonth
-      });
-      setIsSubmitted(true);
-    } catch (error) {
-      console.error('Failed to submit overtime:', error);
-      alert('Failed to submit overtime: ' + error.message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    // Admins see all entries
+    return currentUser?.role === 'admin';
+  });
 
   if (isLoading) {
     return <LoadingScreen />;
@@ -61,15 +42,24 @@ export function OvertimeReport({ selectedDate }: OvertimeReportProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Overtime Approval</h1>
+          {isTeamManager && (
+            <p className="mt-1 text-sm text-gray-500">
+              Managing overtime for {managedTeam.name}
+            </p>
+          )}
+        </div>
+        
         <div className="flex items-center gap-3">
-          <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting || isSubmitted || !data?.entries.length}
-          >
-            {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isSubmitted ? 'Submitted' : 'Submit to Xero'}
-          </Button>
+          <DateNavigation
+            currentDate={currentDate}
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+            onToday={handleToday}
+            formatString="MMMM yyyy"
+          />
         </div>
       </div>
 
@@ -99,10 +89,13 @@ export function OvertimeReport({ selectedDate }: OvertimeReportProps) {
                       <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                         Projects
                       </th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {data?.entries.map((entry) => (
+                    {filteredEntries?.map((entry) => (
                       <tr key={entry.userId}>
                         <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm">
                           <div className="font-medium text-gray-900">{entry.userName}</div>
@@ -149,6 +142,19 @@ export function OvertimeReport({ selectedDate }: OvertimeReportProps) {
                                 </span>
                               </div>
                             ))}
+                          </div>
+                        </td>
+                        <td className="px-3 py-4 text-sm">
+                          <div className="flex gap-2">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              disabled={entry.projects.every(p => 
+                                p.approvalStatus === 'approved' || p.approvalStatus === 'not required'
+                              )}
+                            >
+                              Approve All
+                            </Button>
                           </div>
                         </td>
                       </tr>

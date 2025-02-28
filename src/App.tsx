@@ -11,6 +11,7 @@ import Welcome from '@/pages/Welcome';
 import Processing from '@/pages/Processing';
 import Forecast from '@/pages/Forecast';
 import Bonuses from '@/pages/Bonuses';
+import Overtime from '@/pages/Overtime';
 import ClientsAndProjects from '@/pages/ClientsAndProjects';
 import Users from '@/pages/Users';
 import Teams from '@/pages/Teams';
@@ -66,6 +67,14 @@ export default function App() {
             <Route
               index
               element={<Welcome />}
+            />
+            <Route
+              path="overtime"
+              element={
+                <RoleProtectedRoute allowedRoles={['admin']} teamManagerOnly>
+                  <Overtime />
+                </RoleProtectedRoute>
+              }
             />
             <Route
               path="reports"

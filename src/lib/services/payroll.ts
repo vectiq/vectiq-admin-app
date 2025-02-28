@@ -102,6 +102,7 @@ export async function getPayRun(
       return [];
     }
 
+    console.log(`${status}: ${querySnapshot.docs.length}`);
     return querySnapshot.docs.map((doc) => {
       return doc.data() as PayRun;
     });

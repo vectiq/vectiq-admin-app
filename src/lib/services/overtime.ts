@@ -143,8 +143,7 @@ export async function submitOvertime(
   data: OvertimeReportData, 
   startDate: string, 
   endDate: string, 
-  month: string,
-  payRunId: string
+  month: string
 ): Promise<void> {
   // First check if already submitted
   const submissionRef = collection(db, 'overtimeSubmissions');
@@ -171,7 +170,6 @@ export async function submitOvertime(
   await processOvertime({ 
     overtimeEntries: overtimeEntries,
     startDate,
-    endDate,
-    payRunId
+    endDate
   });
 }

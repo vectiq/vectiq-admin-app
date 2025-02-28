@@ -71,7 +71,7 @@ export async function deleteBonus(id: string): Promise<void> {
   await deleteDoc(bonusRef);
 }
 
-export async function processBonus(bonuses: Bonus[], payRunId: string, payItemId: string): Promise<void> {
+export async function processBonus(bonuses: Bonus[]): Promise<void> {
   const processBonuses = httpsCallable(functions, 'processBonuses');
 
   // Get user documents to lookup Xero Employee IDs
@@ -91,8 +91,6 @@ export async function processBonus(bonuses: Bonus[], payRunId: string, payItemId
 
   try {
     await processBonuses({
-      payRunId,
-      payItemId,
       bonuses: bonuses.map(bonus => ({
         bonusAmount: bonus.amount,
         xeroEmployeeId: userXeroIds.get(bonus.employeeId)
@@ -105,8 +103,6 @@ export async function processBonus(bonuses: Bonus[], payRunId: string, payItemId
       const bonusRef = doc(db, COLLECTION, bonus.id);
       batch.update(bonusRef, {
         paid: true,
-        xeroPayRunId: payRunId,
-        xeroPayItemId: payItemId,
         paidAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
