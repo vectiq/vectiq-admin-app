@@ -51,6 +51,8 @@ export function ProjectTasks({
       sellRate: number;
       date: string;
     }>;
+    newRate?: number;
+    newRateDate?: string;
     billable: boolean;
     teamId?: string;
     xeroLeaveTypeId?: string;
@@ -63,10 +65,7 @@ export function ProjectTasks({
   });
   const [newTaskData, setNewTaskData] = useState({
     name: '',
-    sellRates: [{
-      sellRate: 0,
-      date: format(new Date(), 'yyyy-MM-dd')
-    }],
+    sellRates: [{ sellRate: '', date: format(new Date(), 'yyyy-MM-dd') }],
     billable: false,
     teamId: null,
     xeroLeaveTypeId: ''
@@ -262,11 +261,80 @@ export function ProjectTasks({
             <div className="bg-gray-50 p-4 rounded-lg space-y-4">
               <FormField label="Task Name">
                 <Input
-                  type="text"
                   value={newTaskData.name}
                   onChange={(e) => setNewTaskData(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="e.g., Senior Developer"
                 />
+              </FormField>
+
+              <FormField label="Sell Rates">
+                <div className="space-y-4 relative">
+                  <div className="text-sm text-gray-500 mb-2">
+                    Rates are shown in chronological order, with oldest rates first
+                  </div>
+                  {newTaskData.sellRates.map((rate, index) => (
+                    <div key={index} className="grid grid-cols-12 gap-4 items-start">
+                      <div className="col-span-5">
+                        <FormField label="Rate">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={rate.sellRate}
+                            placeholder="Enter sell rate"
+                            onChange={(e) => {
+                              const newRates = [...newTaskData.sellRates];
+                              newRates[index] = {
+                                ...rate,
+                                sellRate: parseFloat(e.target.value) || 0
+                              };
+                              setNewTaskData(prev => ({
+                                ...prev,
+                                sellRates: newRates
+                              }));
+                            }}
+                          />
+                        </FormField>
+                      </div>
+                      <div className="col-span-5">
+                        <FormField label="Effective Date">
+                          <Input
+                            type="date"
+                            value={rate.date}
+                            onChange={(e) => {
+                              const newRates = [...newTaskData.sellRates];
+                              newRates[index] = {
+                                ...rate,
+                                date: e.target.value
+                              };
+                              setNewTaskData(prev => ({
+                                ...prev,
+                                sellRates: newRates
+                              }));
+                            }}
+                          />
+                        </FormField>
+                      </div>
+                      <div className="col-span-2 pt-8">
+                        {index > 0 && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => {
+                              const newRates = newTaskData.sellRates.filter((_, i) => i !== index);
+                              setNewTaskData(prev => ({
+                                ...prev,
+                                sellRates: newRates
+                              }));
+                            }}
+                            className="w-full"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </FormField>
 
               {project.name === 'Leave' && (
@@ -282,17 +350,6 @@ export function ProjectTasks({
                   </p>
                 </FormField>
               )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField label="Sell Rate">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={newTaskData.sellRates[0].sellRate}
-                    onChange={(e) => setNewTaskData(prev => ({ ...prev, sellRates: [{ ...prev.sellRates[0], sellRate: parseFloat(e.target.value) || 0 }] }))}
-                  />
-                </FormField>
-              </div>
 
               <FormField label="Team">
                 <Select
@@ -446,91 +503,81 @@ export function ProjectTasks({
                     <div className="bg-gray-50 p-4 rounded-lg space-y-4 mb-3">
                       <FormField label="Sell Rates">
                         <div className="space-y-4 relative">
-                          <div className="text-sm text-gray-500 mb-2">
-                            Rates are shown in chronological order, with oldest rates first
+
+                            <div className="space-y-1">
+                              {editingTaskData?.sellRates
+                                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                                .map((rate, index) => (
+                                  <div key={index} className="flex justify-between text-sm">
+                                    <span className="text-gray-600">{format(new Date(rate.date), 'MMM d, yyyy')}</span>
+                                    <span className="font-medium">${rate.sellRate}/hr</span>
+                                  </div>
+                                ))}
                           </div>
-                          {editingTaskData?.sellRates
-                            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-                            .map((rate, index) => (
-                            <div key={index} className="grid grid-cols-12 gap-4 items-start">
-                              <div className="col-span-5">
-                                <FormField label="Rate">
+                          
+                          {/* New rate form */}
+                          <div className="mt-4 pt-4 border-t border-gray-200">
+                            <div className="grid grid-cols-12 gap-4 items-start">
+                              <div className="col-span-6">
+                                <FormField label="New Rate">
                                   <Input
                                     type="number"
                                     step="0.01"
-                                    value={rate.sellRate || ''}
-                                    placeholder="Enter sell rate"
+                                    placeholder="Enter new sell rate"
                                     onChange={(e) => {
-                                      const newRates = [...editingTaskData.sellRates];
-                                      newRates[index] = {
-                                        ...rate,
-                                        sellRate: parseFloat(e.target.value) || 0
-                                      };
+                                      const value = parseFloat(e.target.value) || 0;
                                       setEditingTaskData(prev => ({
                                         ...prev!,
-                                        sellRates: newRates
+                                        newRate: value
                                       }));
                                     }}
                                   />
                                 </FormField>
                               </div>
-                              <div className="col-span-5">
+                              <div className="col-span-6">
                                 <FormField label="Effective Date">
                                   <Input
                                     type="date"
-                                    value={rate.date}
                                     onChange={(e) => {
-                                      const newRates = [...editingTaskData.sellRates];
-                                      newRates[index] = {
-                                        ...rate,
-                                        date: e.target.value
-                                      };
                                       setEditingTaskData(prev => ({
                                         ...prev!,
-                                        sellRates: newRates
+                                        newRateDate: e.target.value
                                       }));
                                     }}
                                   />
                                 </FormField>
                               </div>
-                              <div className="col-span-2 pt-8">
-                                {index > 0 && (
-                                  <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={() => {
-                                      const newRates = editingTaskData.sellRates.filter((_, i) => i !== index);
-                                      setEditingTaskData(prev => ({
-                                        ...prev!,
-                                        sellRates: newRates
-                                      }));
-                                    }}
-                                    className="w-full"
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </div>
                             </div>
-                          ))}
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => {
-                              setEditingTaskData(prev => ({
-                                ...prev!,
-                                sellRates: [
-                                  ...prev!.sellRates,
-                                  {
-                                    sellRate: 0,
-                                    date: format(new Date(), 'yyyy-MM-dd')
-                                  }
-                                ]
-                              }));
-                            }}
-                          >
-                            Add Rate
-                          </Button>
+                            <div className="mt-4">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => {
+                                  if (!editingTaskData.newRate || !editingTaskData.newRateDate) return;
+                                  
+                                  setEditingTaskData(prev => ({
+                                    ...prev!,
+                                    sellRates: [
+                                      {
+                                        sellRate: prev!.newRate!,
+                                        date: prev!.newRateDate!
+                                      },
+                                      ...prev!.sellRates
+                                    ]
+                                  }));
+                                  // Clear the form
+                                  setEditingTaskData(prev => ({
+                                    ...prev!,
+                                    newRate: undefined,
+                                    newRateDate: undefined
+                                  }));
+                                }}
+                                className="w-full"
+                              >
+                                Add Rate
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       </FormField>
 
