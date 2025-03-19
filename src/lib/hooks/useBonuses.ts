@@ -41,7 +41,8 @@ export function useBonuses(month?: string) {
   });
 
   const processMutation = useMutation({
-    mutationFn: (bonuses: Bonus[]) => processBonus(bonuses),
+    mutationFn: ({ bonuses, payRunId, payItemId }: { bonuses: Bonus[]; payRunId: string; payItemId: string }) => 
+      processBonus(bonuses, payRunId, payItemId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
     }
@@ -59,8 +60,8 @@ export function useBonuses(month?: string) {
     return deleteMutation.mutateAsync(id);
   }, [deleteMutation]);
 
-  const handleProcessBonuses = useCallback(async (bonuses: Bonus[]) => {
-    return processMutation.mutateAsync(bonuses);
+  const handleProcessBonuses = useCallback(async (bonuses: Bonus[], payRunId: string, payItemId: string) => {
+    return processMutation.mutateAsync({ bonuses, payRunId, payItemId });
   }, [processMutation]);
 
   return {

@@ -10,8 +10,8 @@ export function ProcessingTabs({ activeTab, onTabChange }: ProcessingTabsProps) 
   const tabs = [
     { id: 'invoicing', name: 'Invoicing', icon: FileText },
     { id: 'payroll', name: 'Payroll', icon: DollarSign },
-    { id: 'overtime', name: 'Overtime', icon: Clock },
-    { id: 'contractors', name: 'Contractors', icon: Users }
+    { id: 'contractor-payroll', name: 'Contractor Payroll', icon: Users },
+    { id: 'overtime', name: 'Overtime', icon: Clock }
   ];
 
   return (

@@ -1,26 +1,38 @@
 import { useState, useMemo } from 'react';
+import { format, parseISO } from 'date-fns';
 import { Card } from '@/components/ui/Card';
 import { PayRunCard } from '@/components/payroll/PayRunCard';
-import { usePayroll } from '@/lib/hooks/usePayroll';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { DollarSign, Plus, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/Select';
 import { useQueryClient } from '@tanstack/react-query';
 import { syncPayRun } from '@/lib/services/payroll';
+import { usePayroll } from '@/lib/hooks/usePayroll';
+import type { PayRun } from '@/types';
 
-export function PayrollTab() {
+interface PayrollTabProps {
+  month: string;
+}
+
+export function PayrollTab({ month }: PayrollTabProps) {
   const [selectedCalendar, setSelectedCalendar] = useState<string>('');
   const [isCreating, setIsCreating] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const queryClient = useQueryClient();
-  const { calendars, isLoading, createPayRun, draftPayRuns, postedPayRuns } = usePayroll({
-    selectedDate: new Date(),
+  const { calendars, isLoading, createPayRun, payRuns } = usePayroll({
+    selectedDate: new Date(month + '-01'),
     includeStats: true,
     onPayRunCreated: () => {
       // Reset the calendar selection after successful creation
       setSelectedCalendar('');
     }
+  });
+
+  // Filter pay runs to only show drafts for the current month
+  const draftPayRuns = payRuns.filter(run => {
+    const runMonth = format(parseISO(run.PayRunPeriodStartDate), 'yyyy-MM');
+    return run.PayRunStatus === 'DRAFT' && runMonth === month;
   });
 
   // Filter out calendars that already have draft pay runs
@@ -79,7 +91,7 @@ export function PayrollTab() {
       <Card>
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
+            <div>
               <DollarSign className="h-5 w-5 text-amber-500" />
               <h3 className="text-lg font-medium text-gray-900">Draft Pay Runs</h3>
             </div>
@@ -149,31 +161,6 @@ export function PayrollTab() {
                 No draft pay runs found
               </div>
             )}
-          </div>
-        </div>
-      </Card>
-
-      {/* Posted Pay Runs */}
-      <Card>
-        <div className="p-6">
-          <div className="flex items-center gap-2 mb-6">
-            <DollarSign className="h-5 w-5 text-green-500" />
-            <h3 className="text-lg font-medium text-gray-900">Posted Pay Runs</h3>
-          </div>
-          
-          <div className="divide-y divide-gray-200">
-            {postedPayRuns
-              .map((payRun) => {
-                const calendar = getCalendarInfo(payRun);
-                return (
-                  <PayRunCard
-                    key={payRun.PayRunID}
-                    payRun={payRun}
-                    calendarName={calendar?.name}
-                    calendarType={calendar?.type}
-                  />
-                );
-              }).reverse()}
           </div>
         </div>
       </Card>

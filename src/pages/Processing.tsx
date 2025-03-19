@@ -5,7 +5,7 @@ import { ProcessingTabs } from '@/components/processing/ProcessingTabs';
 import { InvoicingTab } from '@/components/processing/InvoicingTab';
 import { PayrollTab } from '@/components/processing/PayrollTab';
 import { OvertimeReport } from '@/components/processing/OvertimeReport';
-import { ContractorsTab } from '@/components/processing/ContractorsTab';
+import { ContractorPayrollTab } from '@/components/processing/ContractorPayrollTab';
 import { NotesSlideout } from '@/components/processing/NotesSlideout';
 import { useProcessing } from '@/lib/hooks/useProcessing';
 import { useProcessingNotes } from '@/lib/hooks/useProcessingNotes';
@@ -149,11 +149,11 @@ export default function Processing() {
         />
       )}
       
-      {activeTab === 'payroll' && <PayrollTab />}
+      {activeTab === 'payroll' && <PayrollTab month={month} />}
+
+      {activeTab === 'contractor-payroll' && <ContractorPayrollTab month={month} />}
 
       {activeTab === 'overtime' && <OvertimeReport selectedDate={selectedMonth} />}
-
-      {activeTab === 'contractors' && <ContractorsTab month={month} />}
       
       <NotesSlideout
         open={isNotesOpen}

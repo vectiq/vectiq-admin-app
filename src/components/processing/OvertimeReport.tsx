@@ -5,6 +5,7 @@ import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { format,  startOfMonth, endOfMonth } from 'date-fns';
 import { getWorkingDaysForMonth } from '@/lib/utils/workingDays';
 import { Button } from '@/components/ui/Button';
+import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/Select';
 import { Badge  } from '@/components/ui/Badge';
 import { useState, useEffect, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
@@ -16,12 +17,20 @@ interface OvertimeReportProps {
 export function OvertimeReport({ selectedDate }: OvertimeReportProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [selectedPayRun, setSelectedPayRun] = useState<string>('');
   const currentMonth = format(selectedDate, 'MM-yyyy');
   const workingDays = getWorkingDaysForMonth(format(selectedDate, 'yyyy-MM'));
+  const { payRuns } = usePayroll({ selectedDate });
   const { data, isLoading, submitOvertime, checkSubmission } = useOvertime({
     startDate: format(startOfMonth(selectedDate), 'yyyy-MM-dd'),
     endDate: format(endOfMonth(selectedDate), 'yyyy-MM-dd')
   });
+
+  // Filter to only show draft pay runs
+  const draftPayRuns = useMemo(() => 
+    payRuns.filter(run => run.PayRunStatus === 'DRAFT'),
+    [payRuns]
+  );
 
 
   useEffect(() => {
@@ -34,6 +43,7 @@ export function OvertimeReport({ selectedDate }: OvertimeReportProps) {
 
   const handleSubmit = async () => {
     if (!data) return;
+    if (!selectedPayRun) return;
     
     const startDate = format(startOfMonth(selectedDate), 'yyyy-MM-dd');
     const endDate = format(endOfMonth(selectedDate), 'yyyy-MM-dd');
@@ -44,7 +54,8 @@ export function OvertimeReport({ selectedDate }: OvertimeReportProps) {
         data,
         startDate,
         endDate,
-        month: currentMonth
+        month: currentMonth,
+        payRunId: selectedPayRun
       });
       setIsSubmitted(true);
     } catch (error) {
@@ -63,9 +74,29 @@ export function OvertimeReport({ selectedDate }: OvertimeReportProps) {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-3">
+          <Select
+            value={selectedPayRun}
+            onValueChange={setSelectedPayRun}
+          >
+            <SelectTrigger className="w-[300px]">
+              {selectedPayRun ? 
+                draftPayRuns.find(run => run.PayRunID === selectedPayRun)
+                  ? `${format(new Date(draftPayRuns.find(run => run.PayRunID === selectedPayRun)?.PayRunPeriodStartDate), 'MMM d')} - ${format(new Date(draftPayRuns.find(run => run.PayRunID === selectedPayRun)?.PayRunPeriodEndDate), 'MMM d, yyyy')}`
+                  : 'Select Pay Run'
+                : 'Select Pay Run'}
+            </SelectTrigger>
+            <SelectContent>
+              {draftPayRuns.map(run => (
+                <SelectItem key={run.PayRunID} value={run.PayRunID}>
+                  {format(new Date(run.PayRunPeriodStartDate), 'MMM d')} - {format(new Date(run.PayRunPeriodEndDate), 'MMM d, yyyy')}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
           <Button
             onClick={handleSubmit}
-            disabled={isSubmitting || isSubmitted || !data?.entries.length}
+            disabled={isSubmitting || isSubmitted || !data?.entries.length || !selectedPayRun}
           >
             {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {isSubmitted ? 'Submitted' : 'Submit to Xero'}

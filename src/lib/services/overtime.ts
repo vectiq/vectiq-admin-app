@@ -49,7 +49,8 @@ export async function generateOvertimeReport(filters: { startDate: string; endDa
     const project = projects.get(entry.projectId) as Project;
     const entryDate = parseISO(entry.date);
     
-    if (!user || !project || user.overtime === 'no') return null;
+    // Skip if: no user, no project, user is a contractor, or user has no overtime
+    if (!user || !project || user.employeeType !== 'employee' || user.overtime === 'no') return null;
 
     // For eligible overtime, only include overtime-inclusive projects
     if (user.overtime === 'eligible' && !project.overtimeInclusive) return null;
@@ -68,7 +69,7 @@ export async function generateOvertimeReport(filters: { startDate: string; endDa
   // Calculate total overtime hours
   let totalOvertimeHours = 0;
   const entries = Array.from(users.values())
-    .filter(user => user.overtime !== 'no')
+    .filter(user => user.employeeType === 'employee' && user.overtime !== 'no')
     .map(user => {
       // Calculate standard hours
       const standardMonthlyHours = (user.hoursPerWeek || 40) * (workingDays / 5);
@@ -143,7 +144,8 @@ export async function submitOvertime(
   data: OvertimeReportData, 
   startDate: string, 
   endDate: string, 
-  month: string
+  month: string,
+  payRunId: string
 ): Promise<void> {
   // First check if already submitted
   const submissionRef = collection(db, 'overtimeSubmissions');
@@ -170,6 +172,7 @@ export async function submitOvertime(
   await processOvertime({ 
     overtimeEntries: overtimeEntries,
     startDate,
-    endDate
+    endDate,
+    payRunId
   });
 }

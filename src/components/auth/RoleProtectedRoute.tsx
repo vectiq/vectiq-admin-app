@@ -5,18 +5,17 @@ import { LoadingScreen } from '@/components/ui/LoadingScreen';
 interface RoleProtectedRouteProps {
   children: React.ReactNode;
   allowedRoles: string[];
-  teamManagerOnly?: boolean;
 }
 
-export function RoleProtectedRoute({ children, allowedRoles, teamManagerOnly }: RoleProtectedRouteProps) {
-  const { currentUser, isLoading, isTeamManager } = useUsers();
+export function RoleProtectedRoute({ children, allowedRoles }: RoleProtectedRouteProps) {
+  const { currentUser, isLoading } = useUsers();
   const location = useLocation();
 
   if (isLoading) {
     return <LoadingScreen />;
   }
 
-  if (!currentUser || !allowedRoles.includes(currentUser.role) || (teamManagerOnly && !isTeamManager)) {
+  if (!currentUser || !allowedRoles.includes(currentUser.role)) {
     // If user is not authorized, redirect to timesheet
     return <Navigate to="/" replace state={{ from: location }} />;
   }

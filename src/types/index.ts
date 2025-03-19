@@ -384,6 +384,7 @@ export interface XeroConfig {
   businessUnitTrackingCategoryId?: string;
   overtimePayItemCode: string;
   ordinaryHoursEarningsId: string;
+  contractorOrdinaryHoursEarningsId: string;
   scopes: string[];
 }
 

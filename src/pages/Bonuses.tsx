@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { format, startOfMonth, addMonths, subMonths } from 'date-fns';
 import { useBonuses } from '@/lib/hooks/useBonuses';
+import { useUsers } from '@/lib/hooks/useUsers';
+import { useTeams } from '@/lib/hooks/useTeams';
+import { usePayroll } from '@/lib/hooks/usePayroll';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -14,13 +17,14 @@ import { SlidePanel } from '@/components/ui/SlidePanel';
 import { formatCurrency } from '@/lib/utils/currency';
 import { Plus, DollarSign, Calendar, Loader2, Edit2, Trash2 } from 'lucide-react';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/AlertDialog';
-import { useUsers } from '@/lib/hooks/useUsers';
-import { useTeams } from '@/lib/hooks/useTeams';
 import type { Bonus } from '@/types';
 
 export default function Bonuses() {
   const [currentDate, setCurrentDate] = useState(startOfMonth(new Date()));
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+  const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
+  const [selectedPayRun, setSelectedPayRun] = useState('');
+  const [selectedPayItem, setSelectedPayItem] = useState<string>('');
   const [selectedBonuses, setSelectedBonuses] = useState<Set<string>>(new Set());
   const [editingBonus, setEditingBonus] = useState<Bonus | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; bonusId: string | null }>({
@@ -39,6 +43,17 @@ export default function Bonuses() {
   const { bonuses, createBonus, processBonuses, isLoading, isCreating, isProcessing, updateBonus, deleteBonus } = useBonuses(currentMonth);
   const { users } = useUsers();
   const { teams } = useTeams();
+  const { payRuns, payItems } = usePayroll({ selectedDate: currentDate });
+  
+  // Set default pay item when payItems are loaded
+  useEffect(() => {
+    if (payItems.length > 0 && !selectedPayItem) {
+      const defaultItem = payItems.find(item => item.Name === 'Bonus and commissions');
+      if (defaultItem) {
+        setSelectedPayItem(defaultItem.EarningsRateID);
+      }
+    }
+  }, [payItems, selectedPayItem]);
 
   // Filter bonuses based on user role and team management status
   const filteredBonuses = bonuses.filter(bonus => {
@@ -71,6 +86,8 @@ export default function Bonuses() {
     }
     return false;
   });
+  // Filter to only show draft pay runs
+  const draftPayRuns = payRuns.filter(run => run.PayRunStatus === 'DRAFT');
 
   const handlePrevious = () => setCurrentDate(subMonths(currentDate, 1));
   const handleNext = () => setCurrentDate(addMonths(currentDate, 1));
@@ -149,11 +166,14 @@ export default function Bonuses() {
   };
 
   const handleProcessBonuses = async () => {
+    if (!selectedPayRun || !selectedPayItem) return;
     const selectedBonusList = bonuses.filter(bonus => selectedBonuses.has(bonus.id));
 
     try {
-      await processBonuses(selectedBonusList);
+      await processBonuses(selectedBonusList, selectedPayRun, selectedPayItem);
+      setIsProcessDialogOpen(false);
       setSelectedBonuses(new Set());
+      setSelectedPayItem('');
     } catch (error) {
       console.error('Error processing bonuses:', error);
       alert('Failed to process bonuses. Please check the console for details.');
@@ -188,8 +208,8 @@ export default function Bonuses() {
             Add Bonus
           </Button>
           <Button
-            onClick={() => handleProcessBonuses()}
-            disabled={selectedBonuses.size === 0 || isProcessing}
+            onClick={() => setIsProcessDialogOpen(true)}
+            disabled={selectedBonuses.size === 0}
           >
             <DollarSign className="h-4 w-4 mr-2" />
             Process Bonuses
@@ -421,6 +441,112 @@ export default function Bonuses() {
               </Button>
             </div>
           </form>
+        </div>
+      </SlidePanel>
+
+      {/* Process Bonuses Dialog */}
+      <SlidePanel
+        open={isProcessDialogOpen}
+        onClose={() => setIsProcessDialogOpen(false)}
+        title="Process Bonuses"
+        icon={<DollarSign className="h-5 w-5 text-indigo-500" />}
+      >
+        <div className="p-6">
+          <div className="space-y-4">
+            <FormField label="Select Pay Run">
+              <Select
+                value={selectedPayRun}
+                onValueChange={setSelectedPayRun}
+              >
+                <SelectTrigger>
+                  {selectedPayRun ? 
+                    draftPayRuns.find(run => run.PayRunID === selectedPayRun)
+                      ? `${format(new Date(draftPayRuns.find(run => run.PayRunID === selectedPayRun)?.PayRunPeriodStartDate), 'MMM d')} - ${format(new Date(draftPayRuns.find(run => run.PayRunID === selectedPayRun)?.PayRunPeriodEndDate), 'MMM d, yyyy')}`
+                      : 'Select Pay Run'
+                    : 'Select Pay Run'}
+                </SelectTrigger>
+                <SelectContent>
+                  {draftPayRuns.map(run => (
+                    <SelectItem key={run.PayRunID} value={run.PayRunID}>
+                      {format(new Date(run.PayRunPeriodStartDate), 'MMM d')} - {format(new Date(run.PayRunPeriodEndDate), 'MMM d, yyyy')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+
+            <FormField label="Pay Item">
+              <Select
+                value={selectedPayItem}
+                onValueChange={setSelectedPayItem}
+              >
+                <SelectTrigger>
+                  {selectedPayItem ? 
+                    payItems.find(item => item.EarningsRateID === selectedPayItem)?.Name || 'Select Pay Item'
+                    : 'Select Pay Item'}
+                </SelectTrigger>
+                <SelectContent>
+                  {payItems
+                    .map(item => (
+                      <SelectItem key={item.EarningsRateID} value={item.EarningsRateID}>
+                        {item.Name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="text-sm font-medium text-gray-900 mb-3">Selected Bonuses</h3>
+              <div className="space-y-2">
+                {Array.from(selectedBonuses).map(id => {
+                  const bonus = bonuses.find(b => b.id === id);
+                  if (!bonus) return null;
+                  const employee = users.find(u => u.id === bonus.employeeId);
+                  
+                  return (
+                    <div key={id} className="flex justify-between items-center text-sm">
+                      <span>{employee?.name}</span>
+                      <span className="font-medium">{formatCurrency(bonus.amount)}</span>
+                    </div>
+                  );
+                })}
+                {selectedBonuses.size === 0 && (
+                  <p className="text-sm text-gray-500">No bonuses selected</p>
+                )}
+                {selectedBonuses.size > 0 && (
+                  <div className="pt-2 mt-2 border-t border-gray-200">
+                    <div className="flex justify-between items-center text-sm font-medium">
+                      <span>Total</span>
+                      <span>
+                        {formatCurrency(
+                          Array.from(selectedBonuses)
+                            .map(id => bonuses.find(b => b.id === id)?.amount || 0)
+                            .reduce((a, b) => a + b, 0)
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4">
+              <Button
+                variant="secondary"
+                onClick={() => setIsProcessDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleProcessBonuses}
+                disabled={isProcessing || !selectedPayRun || !selectedPayItem || selectedBonuses.size === 0}
+              >
+                {isProcessing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Process Selected Bonuses
+              </Button>
+            </div>
+          </div>
         </div>
       </SlidePanel>
 

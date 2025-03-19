@@ -172,6 +172,31 @@ export function IntegrationsTab({
               </p>
             </FormField>
 
+            <FormField label="Contractor Ordinary Hours Earnings ID">
+              <Select
+                value={xeroConfig?.contractorOrdinaryHoursEarningsId || ''}
+                onValueChange={(value) => onUpdateXeroConfig({
+                  ...xeroConfig,
+                  contractorOrdinaryHoursEarningsId: value
+                })}
+              >
+                <SelectTrigger>
+                  {payItems.find(item => item.EarningsRateID === xeroConfig?.contractorOrdinaryHoursEarningsId)?.Name || 'Select Contractor Rate'}
+                </SelectTrigger>
+                <SelectContent>
+                  {payItems
+                    .map(item => (
+                      <SelectItem key={item.EarningsRateID} value={item.EarningsRateID}>
+                        {item.Name} ({item.EarningsType})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-xs text-gray-500">
+                The Xero earnings rate ID to use for contractor hours
+              </p>
+            </FormField>
+
             <FormField label="Overtime Pay Item Code">
               <Select
                 value={xeroConfig?.overtimePayItemCode || ''}

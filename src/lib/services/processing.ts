@@ -200,8 +200,17 @@ async function generateTimesheetPDF(project: ProcessingProject, month: string): 
  * This is the main function that should be called to create invoices.
  */
 export async function generateInvoice(project: ProcessingProject): Promise<XeroInvoiceResponse> {
+  const createInvoice = httpsCallable<{ invoiceData: XeroInvoice }, XeroInvoiceResponse>(
+    functions,
+    'createXeroInvoice'
+  );
 
   try {
+    const createXeroInvoice = httpsCallable<{ invoiceData: XeroInvoice }, XeroInvoiceResponse>(
+      functions,
+      'createXeroInvoice'
+    );
+
     // Create a map of task details for quick lookup
     const taskMap = new Map(project.tasks?.map(task => [task.id, task]));
 
