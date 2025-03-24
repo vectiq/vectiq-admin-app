@@ -5,7 +5,7 @@ import {
   createBonus,
   deleteBonus,
   updateBonus,
-  processBonus,
+  processXeroBonus,
 } from '@/lib/services/bonuses';
 import type { Bonus } from '@/types';
 
@@ -41,8 +41,8 @@ export function useBonuses(month?: string) {
   });
 
   const processMutation = useMutation({
-    mutationFn: ({ bonuses, payRunId, payItemId }: { bonuses: Bonus[]; payRunId: string; payItemId: string }) => 
-      processBonus(bonuses, payRunId, payItemId),
+    mutationFn: ({ bonus, payslipId, payItemId }: { bonus: Bonus; payslipId: string; payItemId: string }) => 
+      processXeroBonus(bonus, payslipId, payItemId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
     }
@@ -60,8 +60,8 @@ export function useBonuses(month?: string) {
     return deleteMutation.mutateAsync(id);
   }, [deleteMutation]);
 
-  const handleProcessBonuses = useCallback(async (bonuses: Bonus[], payRunId: string, payItemId: string) => {
-    return processMutation.mutateAsync({ bonuses, payRunId, payItemId });
+  const handleProcessBonus = useCallback(async (bonus: Bonus, payslipId: string, payItemId: string) => {
+    return processMutation.mutateAsync({ bonus, payslipId, payItemId });
   }, [processMutation]);
 
   return {
@@ -71,7 +71,7 @@ export function useBonuses(month?: string) {
     createBonus: handleCreateBonus,
     updateBonus: handleUpdateBonus,
     deleteBonus: handleDeleteBonus,
-    processBonuses: handleProcessBonuses,
+    processBonus: handleProcessBonus,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,

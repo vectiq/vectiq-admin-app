@@ -7,6 +7,7 @@ import { ProcessingTabs } from '@/components/processing/ProcessingTabs';
 import { PayrollTab } from '@/components/processing/PayrollTab';
 import { OvertimeReport } from '@/components/processing/OvertimeReport';
 import { ContractorPayrollTab } from '@/components/processing/ContractorPayrollTab';
+import { BonusesTab } from '@/components/processing/BonusesTab';
 import { NotesSlideout } from '@/components/processing/NotesSlideout';
 import { useProcessingNotes } from '@/lib/hooks/useProcessingNotes';
 import { usePayroll } from '@/lib/hooks/usePayroll';
@@ -139,6 +140,7 @@ export default function Payroll() {
               }}
             />
           )}
+          {activeTab === 'bonuses' && <BonusesTab payRun={selectedPayRun} />}
           {activeTab === 'overtime' && <OvertimeReport payRun={selectedPayRun} />}
         </>
       )}

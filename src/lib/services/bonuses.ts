@@ -9,8 +9,7 @@ import {
   query,
   where,
   orderBy,
-  serverTimestamp,
-  writeBatch,
+  serverTimestamp
 } from 'firebase/firestore';
 import { db, functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
@@ -71,50 +70,25 @@ export async function deleteBonus(id: string): Promise<void> {
   await deleteDoc(bonusRef);
 }
 
-export async function processBonus(bonuses: Bonus[], payRunId: string, payItemId: string): Promise<void> {
-  const processBonuses = httpsCallable(functions, 'processBonuses');
-
-  // Get user documents to lookup Xero Employee IDs
-  const userDocs = await Promise.all(
-    bonuses.map(bonus => 
-      getDoc(doc(db, 'users', bonus.employeeId))
-    )
-  );
-
-  // Map user docs to get Xero Employee IDs
-  const userXeroIds = new Map(
-    userDocs.map((doc, index) => [
-      bonuses[index].employeeId,
-      doc.data()?.xeroEmployeeId
-    ])
-  );
+export async function processXeroBonus(bonus: Bonus, payslipId: string, payItemId: string): Promise<void> {
+  const processBonus = httpsCallable(functions, 'processBonus');
 
   try {
-    await processBonuses({
-      payRunId,
+    const { data } = await processBonus({
+      payslipId,
       payItemId,
-      bonuses: bonuses.map(bonus => ({
-        bonusAmount: bonus.amount,
-        xeroEmployeeId: userXeroIds.get(bonus.employeeId)
-      }))
-    });
+      bonusAmount: bonus.amount
+    }) as { data: { payRunId: string } };
 
-    // Update all bonuses as paid
-    const batch = writeBatch(db);
-    bonuses.forEach(bonus => {
-      const bonusRef = doc(db, COLLECTION, bonus.id);
-      batch.update(bonusRef, {
-        paid: true,
-        xeroPayRunId: payRunId,
-        xeroPayItemId: payItemId,
-        paidAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+    // Update single bonus as paid
+    const bonusRef = doc(db, COLLECTION, bonus.id);
+    await updateDoc(bonusRef, {
+      paid: true,
+      paidAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     });
-
-    await batch.commit();
   } catch (error) {
-    console.error('Error processing bonuses:', error);
+    console.error('Error processing bonus:', error);
     throw error;
   }
 }

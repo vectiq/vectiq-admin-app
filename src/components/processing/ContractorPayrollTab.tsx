@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Table, TableHeader, TableBody, Th, Td } from '@/components/ui/Table';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/Tooltip';
 import { FileText, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
@@ -72,6 +73,7 @@ export function ContractorPayrollTab({
           <TableHeader>
             <tr>
               <Th>Contractor</Th>
+              <Th>Projects & Tasks</Th>
               <Th className="text-right">Total Hours</Th>
               <Th className="text-right">Actions</Th>
             </tr>
@@ -87,6 +89,34 @@ export function ContractorPayrollTab({
             {contractorHours.map((contractor) => (
               <tr key={contractor.userId}>
                 <Td className="font-medium">{contractor.name}</Td>
+                <Td>
+                  <div className="space-y-1">
+                    {contractor.projects?.map(project => (
+                      <div key={project.projectId} className="flex items-center justify-between gap-2">
+                        <span className="text-sm">
+                          {project.projectName} - {project.taskName}
+                        </span>
+                        {project.approvalStatus && (
+                          <Badge
+                            variant={
+                              project.approvalStatus === 'approved' ? 'success' :
+                              project.approvalStatus === 'pending' ? 'warning' :
+                              project.approvalStatus === 'rejected' ? 'destructive' :
+                              'secondary'
+                            }
+                            className="text-xs"
+                          >
+                            Approval {project.approvalStatus === 'not required' ? 'Not Required' : 
+                                      project.approvalStatus.charAt(0).toUpperCase() + project.approvalStatus.slice(1)}
+                          </Badge>
+                        )}
+                        <span className="text-sm font-medium ml-auto">
+                          {project.hours.toFixed(1)} hrs
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </Td>
                 <Td className="text-right">{contractor.hours.toFixed(1)}</Td>
                 <Td>
                   <div className="flex justify-end gap-2">
@@ -129,13 +159,13 @@ export function ContractorPayrollTab({
                               ) : (
                                 <>
                                   <FileText className="h-4 w-4 mr-2" />
-                                  Add Hours
+                                  Update Payslip
                                 </>
                               )
                             ) : (
                               <>
                                 <FileText className="h-4 w-4 mr-2" />
-                                Add Hours
+                                Update Payslip
                               </>
                             )}
                           </Button>

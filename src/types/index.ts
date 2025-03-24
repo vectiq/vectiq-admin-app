@@ -386,6 +386,7 @@ export interface XeroConfig {
   overtimePayItemCode: string;
   ordinaryHoursEarningsId: string;
   contractorOrdinaryHoursEarningsId: string;
+  bonusPayItemId: string;
   scopes: string[];
 }
 

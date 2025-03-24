@@ -197,6 +197,31 @@ export function IntegrationsTab({
               </p>
             </FormField>
 
+            <FormField label="Bonus Pay Item">
+              <Select
+                value={xeroConfig?.bonusPayItemId || ''}
+                onValueChange={(value) => onUpdateXeroConfig({
+                  ...xeroConfig,
+                  bonusPayItemId: value
+                })}
+              >
+                <SelectTrigger>
+                  {payItems.find(item => item.EarningsRateID === xeroConfig?.bonusPayItemId)?.Name || 'Select Bonus Pay Item'}
+                </SelectTrigger>
+                <SelectContent>
+                  {payItems
+                    .map(item => (
+                      <SelectItem key={item.EarningsRateID} value={item.EarningsRateID}>
+                        {item.Name} ({item.EarningsType})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-xs text-gray-500">
+                The Xero pay item to use when processing bonuses
+              </p>
+            </FormField>
+
             <FormField label="Overtime Pay Item Code">
               <Select
                 value={xeroConfig?.overtimePayItemCode || ''}

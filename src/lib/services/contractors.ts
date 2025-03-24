@@ -10,6 +10,14 @@ interface ContractorHours {
   xeroEmployeeId: string;
   hours: number;
   payslipId?: string;
+  projects?: Array<{
+    projectId: string;
+    projectName: string;
+    taskId: string;
+    taskName: string;
+    hours: number;
+    approvalStatus?: string;
+  }>;
 }
 
 export async function getContractorHours(payRun: PayRun): Promise<ContractorHours[]> {
@@ -38,6 +46,20 @@ export async function getContractorHours(payRun: PayRun): Promise<ContractorHour
     where('userId', 'in', contractors.map(c => c.id))
   );
 
+  // Get projects for looking up names
+  const projectsSnapshot = await getDocs(collection(db, 'projects'));
+  const projects = new Map(projectsSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() }]));
+
+  // Get approvals for the pay run period
+  const approvalsRef = collection(db, 'approvals');
+  const approvalsQuery = query(
+    approvalsRef,
+    where('startDate', '>=', format(parseISO(payRun.PayRunPeriodStartDate), 'yyyy-MM-dd')),
+    where('endDate', '<=', format(parseISO(payRun.PayRunPeriodEndDate), 'yyyy-MM-dd'))
+  );
+  const approvalsSnapshot = await getDocs(approvalsQuery);
+  const approvals = approvalsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
   const timeEntriesSnapshot = await getDocs(q);
   const timeEntries = timeEntriesSnapshot.docs.map(doc => ({
     id: doc.id,
@@ -54,6 +76,40 @@ export async function getContractorHours(payRun: PayRun): Promise<ContractorHour
       sum + entry.hours, 0
     );
 
+    // Group entries by project and task
+    const projectHours = new Map();
+    contractorEntries.forEach(entry => {
+      const project = projects.get(entry.projectId);
+      if (!project) return;
+
+      const task = project.tasks?.find(t => t.id === entry.taskId);
+      if (!task) return;
+
+      // Find approval status for this project/user combination
+      const approval = approvals.find(a => 
+        a.project?.id === entry.projectId && 
+        a.userId === entry.userId
+      );
+
+      let approvalStatus = project.requiresApproval
+        ? approval?.status || 'pending'
+        : 'not required';
+
+      const key = `${entry.projectId}_${entry.taskId}`;
+      if (!projectHours.has(key)) {
+        projectHours.set(key, {
+          projectId: entry.projectId,
+          projectName: project.name,
+          taskId: entry.taskId,
+          taskName: task.name,
+          approvalStatus,
+          hours: 0
+        });
+      }
+      const current = projectHours.get(key);
+      current.hours += entry.hours;
+    });
+
     const payslip = payRun.Payslips.find(slip => 
       slip.EmployeeID === contractor.xeroEmployeeId
     );
@@ -63,7 +119,9 @@ export async function getContractorHours(payRun: PayRun): Promise<ContractorHour
       name: contractor.name,
       xeroEmployeeId: contractor.xeroEmployeeId,
       hours: totalHours,
-      payslipId: payslip?.PayslipID
+      payslipId: payslip?.PayslipID,
+      projects: Array.from(projectHours.values())
+        .sort((a, b) => b.hours - a.hours)
     };
   });
 }
