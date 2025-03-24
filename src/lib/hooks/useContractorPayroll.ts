@@ -1,31 +1,31 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getPayRuns, updatePayslip } from '@/lib/services/contractorPayroll';
+import { getContractorHours, updateContractorPayslip } from '@/lib/services/contractors';
+import type { PayRun } from '@/types';
 
 interface UseContractorPayrollOptions {
-  month: string;
-  xeroEmployeeId?: string;
+  payRun: PayRun | null;
 }
 
-export function useContractorPayroll({ month }: UseContractorPayrollOptions) {
+export function useContractorPayroll({ payRun }: UseContractorPayrollOptions) {
   const queryClient = useQueryClient();
 
-  const payRunsQuery = useQuery({
-    queryKey: ['payruns'],
-    queryFn: getPayRuns,
-    select: (payRuns) => {
-      return payRuns.filter(run => run.PayRunStatus === 'DRAFT');
-    }
+  const query = useQuery({
+    queryKey: ['contractor-hours', payRun?.PayRunID],
+    queryFn: () => getContractorHours(payRun!),
+    enabled: !!payRun
   });
 
   const updatePayslipMutation = useMutation({
-    mutationFn: updatePayslip,
+    mutationFn: ({ payslipId, hours }: { payslipId: string; hours: number }) =>
+      updateContractorPayslip(payslipId, hours),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['payruns'] });
+      queryClient.invalidateQueries({ queryKey: ['contractor-hours'] });
     }
   });
 
   return {
-    draftPayRuns: payRunsQuery.data || [],
+    contractorHours: query.data || [],
+    isLoading: query.isLoading,
     updatePayslip: updatePayslipMutation.mutateAsync,
     isUpdating: updatePayslipMutation.isPending
   };

@@ -2,7 +2,8 @@ import { Building2, FolderKanban, BarChart2, TrendingUp, UserCircle, Settings, F
 
 export const navigationItems = [
   { name: 'Reports', href: '/reports', icon: BarChart2, roles: ['admin'], allowTeamManager: true },
-  { name: 'Processing', href: '/processing', icon: FileCheck, roles: ['admin'], allowTeamManager: false },
+  { name: 'Payroll', href: '/payroll', icon: FileCheck, roles: ['admin'], allowTeamManager: false },
+  { name: 'Invoicing', href: '/invoicing', icon: Receipt, roles: ['admin'], allowTeamManager: false },
   { name: 'Bonuses', href: '/bonuses', icon: DollarSign, roles: ['admin'], allowTeamManager: true },
   { name: 'Forecasting', href: '/forecast', icon: TrendingUp, roles: ['admin'], allowTeamManager: true },
   { name: 'Clients & Projects', href: '/clients-and-projects', icon: Building2, roles: ['admin'], allowTeamManager: true },

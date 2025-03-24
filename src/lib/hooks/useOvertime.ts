@@ -1,30 +1,24 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { generateOvertimeReport, submitOvertime, checkOvertimeSubmission } from '@/lib/services/overtime';
-import type { OvertimeReportData } from '@/types';
+import type { OvertimeReportData, PayRun } from '@/types';
 
 interface UseOvertimeOptions {
-  startDate: string;
-  endDate: string;
+  payRun: PayRun | null;
 }
 
-export function useOvertime({ startDate, endDate }: UseOvertimeOptions) {
+export function useOvertime({ payRun }: UseOvertimeOptions) {
   const query = useQuery({
-    queryKey: ['overtime', startDate, endDate],
-    queryFn: () => generateOvertimeReport({ startDate, endDate })
+    queryKey: ['overtime', payRun?.PayRunID],
+    queryFn: () => generateOvertimeReport(payRun!),
+    enabled: !!payRun
   });
 
   const submitMutation = useMutation({
     mutationFn: (args: { 
       data: OvertimeReportData; 
-      startDate: string; 
-      endDate: string; 
-      month: string;
       payRunId: string;
     }) => submitOvertime(
       args.data,
-      args.startDate,
-      args.endDate,
-      args.month,
       args.payRunId
     )
   });

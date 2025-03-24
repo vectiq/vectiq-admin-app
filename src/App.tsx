@@ -1,14 +1,17 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { useEffect, useState, useMemo } from 'react';
+import { getSystemConfig } from '@/lib/services/admin';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { RoleProtectedRoute } from '@/components/auth/RoleProtectedRoute';
+import { DebugDrawer } from '@/components/debug/DebugDrawer';
 import { Layout } from '@/components/layout/Layout';
 import Login from '@/pages/Login';
 import Welcome from '@/pages/Welcome';
-import Processing from '@/pages/Processing';
+import Payroll from '@/pages/Payroll';
+import Invoicing from '@/pages/Invoicing';
 import Forecast from '@/pages/Forecast';
 import Bonuses from '@/pages/Bonuses';
 import ClientsAndProjects from '@/pages/ClientsAndProjects';
@@ -19,11 +22,12 @@ import Reports from './pages/Reports';
 
 const queryClient = new QueryClient()
 
-interface ProtectedRouteProps {
-  children: React.ReactNode;
-}
+function AppContent() {
+  const configQuery = useQuery({
+    queryKey: ['system-config'],
+    queryFn: () => getSystemConfig()
+  });
 
-function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
@@ -37,7 +41,7 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
     return () => unsubscribe();
   }, []);
 
-  if (loading) {
+  if (loading || configQuery.isLoading) {
     return <LoadingScreen />;
   }
 
@@ -45,7 +49,14 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <Layout>
+        <Outlet />
+      </Layout>
+      <DebugDrawer enabled={configQuery.data?.enableDebugDrawer || false} />
+    </>
+  );
 }
 
 export default function App() {
@@ -58,9 +69,7 @@ export default function App() {
           <Route
             path="/"
             element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
+              <AppContent />
             }
           >
             <Route
@@ -84,10 +93,18 @@ export default function App() {
               }
             />
             <Route
-              path="processing"
+              path="payroll"
               element={
                 <RoleProtectedRoute allowedRoles={['admin']}>
-                  <Processing />
+                  <Payroll />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="invoicing"
+              element={
+                <RoleProtectedRoute allowedRoles={['admin']}>
+                  <Invoicing />
                 </RoleProtectedRoute>
               }
             />

@@ -136,6 +136,7 @@ export interface SystemConfig {
   insurancePercentage?: number;
   superannuationPercentage?: number;
   costRateFormula?: string;
+  enableDebugDrawer?: boolean;
 }
 
 export interface AdminStats {

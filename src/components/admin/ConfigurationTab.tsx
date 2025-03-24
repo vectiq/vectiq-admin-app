@@ -23,7 +23,8 @@ export function ConfigurationTab({
     defaultOvertimeType: config.defaultOvertimeType,
     requireApprovalsByDefault: config.requireApprovalsByDefault,
     allowOvertimeByDefault: config.allowOvertimeByDefault,
-    defaultBillableStatus: config.defaultBillableStatus
+    defaultBillableStatus: config.defaultBillableStatus,
+    enableDebugDrawer: config.enableDebugDrawer || false
   });
 
   return (
@@ -37,6 +38,7 @@ export function ConfigurationTab({
             requireApprovalsByDefault: formState.requireApprovalsByDefault,
             allowOvertimeByDefault: formState.allowOvertimeByDefault,
             defaultBillableStatus: formState.defaultBillableStatus,
+            enableDebugDrawer: formState.enableDebugDrawer
           });
         }}
         className="space-y-4"
@@ -95,6 +97,15 @@ export function ConfigurationTab({
               setFormState(prev => ({ ...prev, defaultBillableStatus: checked }));
             }}
             label="Set tasks as billable by default"
+          />
+
+          <Checkbox
+            name="enableDebugDrawer"
+            checked={formState.enableDebugDrawer}
+            onCheckedChange={(checked: boolean) => {
+              setFormState(prev => ({ ...prev, enableDebugDrawer: checked }));
+            }}
+            label="Enable Debug Drawer"
           />
         </div>
 
