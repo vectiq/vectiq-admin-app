@@ -84,16 +84,14 @@ export async function getPayRun(
   status?: string
 ): Promise<PayRun[]> {
   try {
-    // Create query to find all documents where id starts with YYYYMM-
     const payRunRef = collection(db, COLLECTION);
     const constraints = [
-      month ? where("__name__", ">=", `${month}-`) : undefined,
-      month ? where("__name__", "<", `${month}-\uf8ff`) : undefined,
       status ? where("PayRunStatus", "==", status) : undefined,
-    ];
+    ].filter(c => c !== undefined);
+
     const q = query(
       payRunRef,
-      ...constraints.filter((c) => c !== undefined),
+      ...constraints,
       orderBy("__name__")
     );
 
@@ -102,7 +100,6 @@ export async function getPayRun(
       return [];
     }
 
-    console.log(`${status}: ${querySnapshot.docs.length}`);
     return querySnapshot.docs.map((doc) => {
       return doc.data() as PayRun;
     });

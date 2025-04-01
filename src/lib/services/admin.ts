@@ -80,7 +80,10 @@ export async function deletePublicHoliday(id: string): Promise<void> {
 
 export async function updateSystemConfig(config: SystemConfig): Promise<void> {
   const configRef = doc(db, 'config', CONFIG_DOC);
-  await setDoc(configRef, config);
+  await setDoc(configRef, {
+    ...config,
+    updatedAt: serverTimestamp()
+  }, { merge: true });
 }
 
 export async function getAdminStats(): Promise<AdminStats> {

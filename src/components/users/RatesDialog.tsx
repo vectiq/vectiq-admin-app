@@ -164,6 +164,17 @@ export function RatesDialog({
   const handleSave = async () => {
     setIsSubmitting(true);
     try {
+      if (user.employeeType === 'employee' && salaryHistory.length > 0) {
+        // Get config to check for cost rate formula
+        const configRef = doc(db, 'config', 'system_config');
+        const configDoc = await getDoc(configRef);
+        const config = configDoc.data();
+        
+        if (!config?.costRateFormula) {
+          throw new Error('Cost rate formula must be configured in Admin settings before updating employee rates');
+        }
+      }
+
       const updates = {
         hoursPerWeek,
         estimatedBillablePercentage
@@ -185,7 +196,7 @@ export function RatesDialog({
       onOpenChange(false);
     } catch (error) {
       console.error('Failed to save rates:', error);
-      alert('Failed to save changes');
+      alert(error instanceof Error ? error.message : 'Failed to save changes');
     } finally {
       setIsSubmitting(false); 
     }

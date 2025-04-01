@@ -276,6 +276,10 @@ export async function updateUserRates(id: string, updates: {
     try {
       const config = await getSystemConfig();
       
+      if (!config.costRateFormula) {
+        throw new Error('Cost rate formula must be configured in Admin settings before updating employee rates');
+      }
+      
       // Sort salary entries by date
       const sortedSalary = updates.salary.sort((a, b) => 
         new Date(b.date).getTime() - new Date(a.date).getTime()
