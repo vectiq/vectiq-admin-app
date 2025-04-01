@@ -2,12 +2,9 @@ import { collection, getDocs, query, where, doc, setDoc, serverTimestamp } from 
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/lib/firebase';
 import { format, eachDayOfInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
+import { getWorkingDaysForMonth } from '@/lib/utils/workingDays';
 import type {
-  ProcessingData,
-  ProcessingProject,
-  TimeEntry,
-  Approval,
-  XeroInvoiceResponse
+  ProcessingData, ProcessingProject, TimeEntry, Approval, XeroInvoiceResponse, ProjectTask
 } from '@/types';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -200,77 +197,15 @@ async function generateTimesheetPDF(project: ProcessingProject, month: string): 
  * This is the main function that should be called to create invoices.
  */
 export async function generateInvoice(project: ProcessingProject): Promise<XeroInvoiceResponse> {
-  const createInvoice = httpsCallable<{ invoiceData: XeroInvoice }, XeroInvoiceResponse>(
-    functions,
-    'createXeroInvoice'
-  );
-
   try {
     const createXeroInvoice = httpsCallable<{ invoiceData: XeroInvoice }, XeroInvoiceResponse>(
       functions,
       'createXeroInvoice'
     );
 
-    // Create a map of task details for quick lookup
-    const taskMap = new Map(project.tasks?.map(task => [task.id, task]));
-
-    // Group assignments by user and task
-    const userTaskHours = new Map<string, Map<string, {
-      hours: number;
-      taskName: string;
-      sellRate: number;
-    }>>();
-
-    project.assignments.forEach(assignment => {
-      const task = taskMap.get(assignment.taskId);
-      if (!task) return;
-
-      if (!userTaskHours.has(assignment.userId)) {
-        userTaskHours.set(assignment.userId, new Map());
-      }
-      const userTasks = userTaskHours.get(assignment.userId)!;
-
-      const key = assignment.taskId;
-      const existing = userTasks.get(key);
-
-      if (existing) {
-        existing.hours += assignment.hours;
-      } else {
-        userTasks.set(key, {
-          hours: assignment.hours,
-          taskName: assignment.taskName,
-          sellRate: task.sellRate || 0
-        });
-      }
-    });
-
-    // Create line items for each user's tasks
-    const lineItems: XeroInvoiceLineItem[] = [];
-    userTaskHours.forEach((tasks, userId) => {
-      const user = project.assignments.find(a => a.userId === userId);
-      if (!user) return;
-
-      tasks.forEach((taskData, taskId) => {
-        lineItems.push({
-          Description: `${taskData.taskName} - ${user.userName} - ${project.purchaseOrderNumber || ''}`,
-          Quantity: taskData.hours,
-          UnitAmount: taskData.sellRate,
-          AccountCode: "200"
-        });
-      });
-    });
-
-    const invoice: XeroInvoice = {
-      Type: "ACCREC",
-      Reference: project.purchaseOrderNumber || '',
-      Contact: {
-        ContactID: project.xeroContactId || ''
-      },
-      LineItems: lineItems
-    };
-
     // First create the invoice in Xero
     const response = await createInvoiceInXero(project);
+    console.log("Xero invoice response:", response);
     const invoiceId = response.Invoices?.[0]?.InvoiceID;
 
     if (!invoiceId) {
@@ -291,7 +226,6 @@ export async function generateInvoice(project: ProcessingProject): Promise<XeroI
     // Return both the invoice response and the PDF data for debugging
     return {
       ...response,
-      pdfData: pdf
     };
   } catch (error) {
     console.error('Error creating Xero invoice:', error);
@@ -310,7 +244,10 @@ async function createInvoiceInXero(project: ProcessingProject): Promise<XeroInvo
   );
 
   // Create line items grouped by user and task
-  const lineItems = await generateInvoiceLineItems(project);
+  const lineItems = await generateInvoiceLineItems(project, format(new Date(), 'yyyy-MM'));
+  
+  // Debug the line items
+  console.log("Invoice line items:", lineItems);
 
   const invoice = {
     Type: "ACCREC",
@@ -321,7 +258,7 @@ async function createInvoiceInXero(project: ProcessingProject): Promise<XeroInvo
     LineItems: lineItems
   };
 
-  const response = await createInvoice({ invoiceData: invoice });
+  const response = await createInvoice({ invoiceData: invoice });  
   return response.data;
 }
 
@@ -329,8 +266,13 @@ async function createInvoiceInXero(project: ProcessingProject): Promise<XeroInvo
  * Generates line items for a Xero invoice by grouping hours by user and task.
  * This is an internal helper function used by createInvoiceInXero.
  */
-async function generateInvoiceLineItems(project: ProcessingProject): Promise<XeroInvoiceLineItem[]> {
+async function generateInvoiceLineItems(project: ProcessingProject, month: string): Promise<XeroInvoiceLineItem[]> {
   const taskMap = new Map(project.tasks?.map(task => [task.id, task]));
+  
+  // Get the current date as the last day of the month for sell rate calculation
+  const currentMonth = month || format(new Date(), 'yyyy-MM');
+  const lastDayOfMonth = format(endOfMonth(parseISO(`${currentMonth}-01`)), 'yyyy-MM-dd');
+  
   const teamsSnapshot = await getDocs(collection(db, 'teams'));
   const teams = new Map(teamsSnapshot.docs.map(doc => [doc.id, doc.data().name]));
   const userTaskHours = new Map<string, Map<string, {
@@ -340,10 +282,36 @@ async function generateInvoiceLineItems(project: ProcessingProject): Promise<Xer
     teamId?: string;
   }>>();
 
+  // Debug the project assignments
+  console.log("Project assignments:", project.assignments);
+
   // Group hours by user and task
   project.assignments.forEach(assignment => {
     const task = taskMap.get(assignment.taskId);
     if (!task) return;
+    
+    // Get the appropriate sell rate for the task
+    let sellRate = 0;
+    
+    // If task has sellRates array, find the applicable rate for the current month
+    if (task.sellRates && Array.isArray(task.sellRates) && task.sellRates.length > 0) {
+      // Sort rates by date descending
+      const sortedRates = [...task.sellRates].sort((a, b) => 
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+      
+      // Find the most recent rate that is not after the last day of the month
+      const applicableRate = sortedRates.find(rate => 
+        new Date(rate.date) <= new Date(lastDayOfMonth)
+      );
+      
+      if (applicableRate) {
+        sellRate = applicableRate.sellRate;
+      }
+    } else if (typeof task.sellRate === 'number') {
+      // Fallback to the legacy sellRate property if it exists
+      sellRate = task.sellRate;
+    }
 
     if (!userTaskHours.has(assignment.userId)) {
       userTaskHours.set(assignment.userId, new Map());
@@ -358,8 +326,9 @@ async function generateInvoiceLineItems(project: ProcessingProject): Promise<Xer
     } else {
       userTasks.set(key, {
         hours: assignment.hours,
+        // Get the task name from the assignment
         taskName: assignment.taskName,
-        sellRate: task.sellRate || 0,
+        sellRate: sellRate,
         teamId: task.teamId
       });
     }
@@ -373,9 +342,9 @@ async function generateInvoiceLineItems(project: ProcessingProject): Promise<Xer
 
     tasks.forEach((taskData) => {
       const lineItem: XeroInvoiceLineItem = {
-        Description: `${taskData.taskName} - ${user.userName} - ${project.purchaseOrderNumber || ''}`,
-        Quantity: taskData.hours,
-        UnitAmount: taskData.sellRate,
+        Description: `${taskData.taskName} - ${user.userName}${project.purchaseOrderNumber ? ` - ${project.purchaseOrderNumber}` : ''}`,
+        Quantity: parseFloat(taskData.hours.toFixed(2)),
+        UnitAmount: parseFloat(taskData.sellRate.toFixed(2)),
         AccountCode: "200"
       };
 

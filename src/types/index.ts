@@ -319,6 +319,7 @@ export interface ProjectTask {
   name: string;
   projectId: string;
   isActive: boolean;
+  sellRate?: number; // Legacy property
   sellRates: Array<{
     sellRate: number;
     date: string;

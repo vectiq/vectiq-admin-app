@@ -58,7 +58,6 @@ export function ProcessingTable({
   const [invoiceResponse, setInvoiceResponse] = useState<any | null>(null);
   const [projectNotesCounts, setProjectNotesCounts] = useState<ProjectNotesMap>({});
   const [generatingInvoiceId, setGeneratingInvoiceId] = useState<string | null>(null);
-  const [pdfDebugData, setPdfDebugData] = useState<string | null>(null);
   const [invoiceConfirmation, setInvoiceConfirmation] = useState<{ isOpen: boolean; project: ProcessingProject | null }>({
     isOpen: false,
     project: null
@@ -152,19 +151,16 @@ export function ProcessingTable({
   const handleConfirmInvoice = async () => {
     const project = invoiceConfirmation.project;
     if (!project) return;
+    
     setGeneratingInvoiceId(project.id);
 
     try {
       const response = await generateInvoice(project);
       setInvoiceResponse(response);
-      if (response.pdfData) {
-        // Convert Uint8Array to base64 string for display
-        setPdfDebugData(response.pdfData);
-      }
       setInvoiceConfirmation({ isOpen: false, project: null });
     } catch (error) {
       console.error('Failed to generate invoice:', error);
-      alert('Failed to generate invoice. Please check the console for details.');
+      alert(`Failed to generate invoice: ${error.message || 'Unknown error'}. Please check the console for details.`);
     }
     setGeneratingInvoiceId(null);
     setInvoiceConfirmation({ isOpen: false, project: null });
@@ -366,7 +362,6 @@ export function ProcessingTable({
               size="sm"
               onClick={() => {
                 setInvoiceResponse(null);
-                setPdfDebugData(null);
               }}
             >
               Clear
@@ -395,19 +390,6 @@ export function ProcessingTable({
               </div>
             </div>
           </div>
-          
-          {pdfDebugData && (
-            <div className="mt-4">
-              <h4 className="text-sm font-medium text-gray-900 mb-2">PDF Debug Data</h4>
-              <div className="bg-white p-4 rounded border">
-                <textarea
-                  readOnly
-                  value={pdfDebugData}
-                  className="w-full h-32 font-mono text-xs p-2 border rounded"
-                />
-              </div>
-            </div>
-          )}
         </div>
       )}
 

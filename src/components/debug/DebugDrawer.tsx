@@ -47,7 +47,6 @@ export function DebugDrawer({ enabled }: DebugDrawerProps) {
           <Button
             onClick={() => {
               if (text.trim()) {
-                console.error(text);
                 setText('');
               }
             }}
