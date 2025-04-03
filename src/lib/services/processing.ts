@@ -2,6 +2,7 @@ import { collection, getDocs, query, where, doc, setDoc, serverTimestamp } from 
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/lib/firebase';
 import { format, eachDayOfInterval, parseISO, startOfMonth, endOfMonth, getMonth, getYear } from 'date-fns';
+import { getSystemConfig } from '@/lib/services/admin';
 import { getWorkingDaysForMonth } from '@/lib/utils/workingDays';
 import type {
   ProcessingData, ProcessingProject, TimeEntry, Approval, XeroInvoiceResponse, ProjectTask, SubmittedInvoice
@@ -404,6 +405,10 @@ export async function getProcessingData(month: string): Promise<ProcessingData> 
   const startDate = `${month}-01`;
   const endDate = `${month}-31`;
 
+  // Get system config to check for hidden clients
+  const systemConfig = await getSystemConfig();
+  const hiddenClientIds = systemConfig.hiddenClientsInInvoicing || [];
+
   // Fetch all required data in parallel
   const [timeEntriesSnapshot, projectsSnapshot, clientsSnapshot, usersSnapshot, approvalsSnapshot, statusesSnapshot] =
     await Promise.all([
@@ -462,7 +467,7 @@ export async function getProcessingData(month: string): Promise<ProcessingData> 
   });
 
   // Process each project that has time entries
-  const processedProjects = Array.from(projects.values())
+  let processedProjects = Array.from(projects.values())
     .filter(project => entriesByProject.has(project.id))
     .map(project => {
       const client = clients.get(project.clientId);
@@ -533,6 +538,13 @@ export async function getProcessingData(month: string): Promise<ProcessingData> 
         assignments
       } as ProcessingProject;
     });
+
+  // Filter out projects from hidden clients
+  if (hiddenClientIds.length > 0) {
+    processedProjects = processedProjects.filter(project => 
+      !hiddenClientIds.includes(project.clientId)
+    );
+  }
 
   // Calculate summary statistics
   const summary = {

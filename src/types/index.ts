@@ -137,6 +137,7 @@ export interface SystemConfig {
   superannuationPercentage?: number;
   costRateFormula?: string;
   enableDebugDrawer?: boolean;
+  hiddenClientsInInvoicing?: string[];
 }
 
 export interface AdminStats {

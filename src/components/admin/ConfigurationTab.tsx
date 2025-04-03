@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/ui/FormField';
 import { Input } from '@/components/ui/Input';
-import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/Select';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/Select';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { Card } from '@/components/ui/Card';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
+import { useClients } from '@/lib/hooks/useClients';
 import type { SystemConfig } from '@/types';
 
 interface ConfigurationTabProps {
@@ -24,8 +25,11 @@ export function ConfigurationTab({
     requireApprovalsByDefault: config.requireApprovalsByDefault,
     allowOvertimeByDefault: config.allowOvertimeByDefault,
     defaultBillableStatus: config.defaultBillableStatus,
-    enableDebugDrawer: config.enableDebugDrawer || false
+    enableDebugDrawer: config.enableDebugDrawer || false,
+    hiddenClientsInInvoicing: config.hiddenClientsInInvoicing || []
   });
+  const { clients } = useClients();
+  const [selectedClient, setSelectedClient] = useState<string>('');
 
   return (
     <Card className="p-6">
@@ -38,7 +42,8 @@ export function ConfigurationTab({
             requireApprovalsByDefault: formState.requireApprovalsByDefault,
             allowOvertimeByDefault: formState.allowOvertimeByDefault,
             defaultBillableStatus: formState.defaultBillableStatus,
-            enableDebugDrawer: formState.enableDebugDrawer
+            enableDebugDrawer: formState.enableDebugDrawer,
+            hiddenClientsInInvoicing: formState.hiddenClientsInInvoicing
           });
         }}
         className="space-y-4"
@@ -48,6 +53,8 @@ export function ConfigurationTab({
             type="number"
             name="defaultHoursPerWeek"
             defaultValue={config.defaultHoursPerWeek}
+            min="1"
+            max="168"
           />
         </FormField>
 
@@ -107,6 +114,77 @@ export function ConfigurationTab({
             }}
             label="Enable Debug Drawer"
           />
+        </div>
+
+        <div className="space-y-4 pt-4">
+          <h3 className="text-sm font-medium text-gray-700">Hidden Clients in Invoicing</h3>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <Select
+                value={selectedClient}
+                onValueChange={setSelectedClient}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select client to hide" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients
+                    .filter(client => !formState.hiddenClientsInInvoicing.includes(client.id))
+                    .map(client => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button 
+              type="button" 
+              onClick={() => {
+                if (selectedClient) {
+                  setFormState(prev => ({
+                    ...prev,
+                    hiddenClientsInInvoicing: [...prev.hiddenClientsInInvoicing, selectedClient]
+                  }));
+                  setSelectedClient('');
+                }
+              }}
+              disabled={!selectedClient}
+            >
+              Add
+            </Button>
+          </div>
+          
+          {formState.hiddenClientsInInvoicing.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {formState.hiddenClientsInInvoicing.map(clientId => {
+                const client = clients.find(c => c.id === clientId);
+                return (
+                  <div 
+                    key={clientId}
+                    className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-md text-sm"
+                  >
+                    <span>{client?.name || 'Unknown Client'}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormState(prev => ({
+                          ...prev,
+                          hiddenClientsInInvoicing: prev.hiddenClientsInInvoicing.filter(id => id !== clientId)
+                        }));
+                      }}
+                      className="text-gray-500 hover:text-red-500 p-0.5"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <p className="text-xs text-gray-500 mt-1">
+            Clients added to this list will be hidden from the invoicing table
+          </p>
         </div>
 
         <div className="pt-4 border-t">
