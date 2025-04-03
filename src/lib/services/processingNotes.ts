@@ -20,8 +20,8 @@ const COLLECTION = 'processingNotes';
 const formatTimestamp = () => new Date().toISOString();
 
 // Get all notes for a specific project and pay run
-export async function getProjectNotes(projectId: string, payRunId: string): Promise<ProjectProcessingNote | null> {
-  const docRef = doc(db, COLLECTION, `project_${projectId}_${payRunId}`);
+export async function getProjectNotes(projectId: string, month: string): Promise<ProjectProcessingNote | null> {
+  const docRef = doc(db, COLLECTION, `project_${projectId}_${month}`);
   const docSnap = await getDoc(docRef);
   
   if (!docSnap.exists()) {
@@ -32,8 +32,8 @@ export async function getProjectNotes(projectId: string, payRunId: string): Prom
 }
 
 // Get all notes for a specific pay run
-export async function getPayRunNotes(payRunId: string): Promise<MonthlyProcessingNote | null> {
-  const docRef = doc(db, COLLECTION, `payrun_${payRunId || ''}`);
+export async function getPayRunNotes(month: string): Promise<MonthlyProcessingNote | null> {
+  const docRef = doc(db, COLLECTION, `payrun_${month || ''}`);
   const docSnap = await getDoc(docRef);
   
   if (!docSnap.exists()) {
@@ -43,8 +43,8 @@ export async function getPayRunNotes(payRunId: string): Promise<MonthlyProcessin
   return docSnap.data() as MonthlyProcessingNote;
 }
 
-export async function addProjectNote(projectId: string, payRunId: string, note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>): Promise<Note> {
-  const docRef = doc(db, COLLECTION, `project_${projectId}_${payRunId}`);
+export async function addProjectNote(projectId: string, month: string, note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>): Promise<Note> {
+  const docRef = doc(db, COLLECTION, `project_${projectId}_${month}`);
   const docSnap = await getDoc(docRef);
   
   const newNote: Note = {
@@ -58,7 +58,7 @@ export async function addProjectNote(projectId: string, payRunId: string, note: 
     // Create new document with first note
     await setDoc(docRef, {
       projectId,
-      payRunId,
+      month,
       notes: [newNote]
     });
   } else {
@@ -72,12 +72,12 @@ export async function addProjectNote(projectId: string, payRunId: string, note: 
   return newNote;
 }
 
-export async function addPayRunNote(payRunId: string, note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>): Promise<Note> {
-  if (!payRunId) {
-    throw new Error('Pay run ID is required');
+export async function addPayRunNote(month: string, note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>): Promise<Note> {
+  if (!month) {
+    throw new Error('Month is required');
   }
 
-  const docRef = doc(db, COLLECTION, `payrun_${payRunId || ''}`);
+  const docRef = doc(db, COLLECTION, `payrun_${month || ''}`);
   const docSnap = await getDoc(docRef);
   
   const newNote: Note = {
@@ -90,7 +90,7 @@ export async function addPayRunNote(payRunId: string, note: Omit<Note, 'id' | 'c
   if (!docSnap.exists()) {
     // Create new document with first note
     await setDoc(docRef, {
-      payRunId,
+      month,
       notes: [newNote]
     });
   } else {
@@ -104,8 +104,8 @@ export async function addPayRunNote(payRunId: string, note: Omit<Note, 'id' | 'c
   return newNote;
 }
 
-export async function updateProjectNote(projectId: string, payRunId: string, noteId: string, updates: Partial<Note>): Promise<void> {
-  const docRef = doc(db, COLLECTION, `project_${projectId}_${payRunId}`);
+export async function updateProjectNote(projectId: string, month: string, noteId: string, updates: Partial<Note>): Promise<void> {
+  const docRef = doc(db, COLLECTION, `project_${projectId}_${month}`);
   const docSnap = await getDoc(docRef);
   
   if (!docSnap.exists()) {
@@ -129,12 +129,12 @@ export async function updateProjectNote(projectId: string, payRunId: string, not
   await updateDoc(docRef, { notes: updatedNotes });
 }
 
-export async function updatePayRunNote(payRunId: string, noteId: string, updates: Partial<Note>): Promise<void> {
-  if (!payRunId) {
-    throw new Error('Pay run ID is required');
+export async function updatePayRunNote(month: string, noteId: string, updates: Partial<Note>): Promise<void> {
+  if (!month) {
+    throw new Error('Month is required');
   }
 
-  const docRef = doc(db, COLLECTION, `payrun_${payRunId || ''}`);
+  const docRef = doc(db, COLLECTION, `payrun_${month || ''}`);
   const docSnap = await getDoc(docRef);
   
   if (!docSnap.exists()) {
@@ -158,8 +158,8 @@ export async function updatePayRunNote(payRunId: string, noteId: string, updates
   await updateDoc(docRef, { notes: updatedNotes });
 }
 
-export async function deleteProjectNote(projectId: string, payRunId: string, noteId: string): Promise<void> {
-  const docRef = doc(db, COLLECTION, `project_${projectId}_${payRunId}`);
+export async function deleteProjectNote(projectId: string, month: string, noteId: string): Promise<void> {
+  const docRef = doc(db, COLLECTION, `project_${projectId}_${month}`);
   const docSnap = await getDoc(docRef);
   
   if (!docSnap.exists()) {
@@ -177,12 +177,12 @@ export async function deleteProjectNote(projectId: string, payRunId: string, not
   }
 }
 
-export async function deletePayRunNote(payRunId: string, noteId: string): Promise<void> {
-  if (!payRunId) {
-    throw new Error('Pay run ID is required');
+export async function deletePayRunNote(month: string, noteId: string): Promise<void> {
+  if (!month) {
+    throw new Error('Month is required');
   }
 
-  const docRef = doc(db, COLLECTION, `payrun_${payRunId || ''}`);
+  const docRef = doc(db, COLLECTION, `payrun_${month || ''}`);
   const docSnap = await getDoc(docRef);
   
   if (!docSnap.exists()) {

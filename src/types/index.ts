@@ -408,3 +408,12 @@ export interface ForecastDelta {
   value: number;
   updatedAt: string;
 }
+
+export interface SubmittedInvoice {
+  id: string;
+  projectId: string;
+  month: string;
+  year: string;
+  invoiceData: any;
+  createdAt: any;
+}

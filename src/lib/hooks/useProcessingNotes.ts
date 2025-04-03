@@ -19,21 +19,26 @@ const QUERY_KEYS = {
 
 interface UseProcessingNotesOptions {
   projectId?: string;
-  payRunId?: string;
+  month?: string;
+  year?: string;
 }
 
 function useProcessingNotes({
   projectId,
-  payRunId
+  month,
+  year
 }: UseProcessingNotesOptions) {
   const queryClient = useQueryClient();
   const [notesCache, setNotesCache] = useState<Record<string, Note[]>>({});
+  
+  // Combine month and year if both are provided, otherwise use month
+  const monthYear = year && month ? `${year}-${month}` : month;
 
   // Query for project notes
   const projectNotesQuery = useQuery({
-    queryKey: [QUERY_KEYS.projectNotes, projectId, payRunId],
-    queryFn: () => getProjectNotes(projectId!, payRunId || ''),
-    enabled: !!projectId && !!payRunId
+    queryKey: [QUERY_KEYS.projectNotes, projectId, monthYear],
+    queryFn: () => getProjectNotes(projectId!, monthYear || ''),
+    enabled: !!projectId && !!monthYear
   });
 
   // Function to get notes for any project
@@ -60,18 +65,38 @@ function useProcessingNotes({
   }, [notesCache]);
   // Query for monthly notes
   const monthlyNotesQuery = useQuery({
-    queryKey: [QUERY_KEYS.payRunNotes, payRunId],
-    queryFn: () => getPayRunNotes(payRunId || ''),
-    enabled: !!payRunId
+    queryKey: [QUERY_KEYS.payRunNotes, monthYear],
+    queryFn: () => getPayRunNotes(monthYear || ''),
+    enabled: !!monthYear
   });
 
   // Add project note mutation
   const addProjectNoteMutation = useMutation({
     mutationFn: (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) =>
-      addProjectNote(projectId!, payRunId || '', note),
+      addProjectNote(projectId!, monthYear || '', note), 
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QUERY_KEYS.projectNotes, projectId, payRunId]
+        queryKey: [QUERY_KEYS.projectNotes, projectId, monthYear]
+      });
+      
+      // Update the cache for this project
+      const cacheKey = `${projectId}_${monthYear}`;
+      setNotesCache(prev => {
+        const existingNotes = prev[cacheKey] || [];
+        // Create a mock note with a temporary ID
+        const mockNote: Note = {
+          id: `temp-${Date.now()}`,
+          text: 'New note',
+          priority: 'medium',
+          status: 'pending',
+          createdBy: 'Current User',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        return {
+          ...prev,
+          [cacheKey]: [...existingNotes, mockNote]
+        };
       });
     }
   });
@@ -79,10 +104,10 @@ function useProcessingNotes({
   // Add monthly note mutation
   const addMonthlyNoteMutation = useMutation({
     mutationFn: (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) =>
-      addPayRunNote(payRunId!, note),
+      addPayRunNote(monthYear!, note),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QUERY_KEYS.payRunNotes, payRunId]
+        queryKey: [QUERY_KEYS.payRunNotes, monthYear]
       });
     }
   });
@@ -90,10 +115,10 @@ function useProcessingNotes({
   // Update project note mutation
   const updateProjectNoteMutation = useMutation({
     mutationFn: ({ noteId, updates }: { noteId: string; updates: Partial<Note> }) =>
-      updateProjectNote(projectId!, payRunId || '', noteId, updates),
+      updateProjectNote(projectId!, monthYear || '', noteId, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QUERY_KEYS.projectNotes, projectId, payRunId]
+        queryKey: [QUERY_KEYS.projectNotes, projectId, monthYear]
       });
     }
   });
@@ -101,10 +126,10 @@ function useProcessingNotes({
   // Update monthly note mutation
   const updateMonthlyNoteMutation = useMutation({
     mutationFn: ({ noteId, updates }: { noteId: string; updates: Partial<Note> }) =>
-      updatePayRunNote(payRunId!, noteId, updates),
+      updatePayRunNote(monthYear!, noteId, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [QUERY_KEYS.payRunNotes, payRunId]
+        queryKey: [QUERY_KEYS.payRunNotes, monthYear]
       });
     }
   });
@@ -112,10 +137,23 @@ function useProcessingNotes({
   // Delete project note mutation
   const deleteProjectNoteMutation = useMutation({
     mutationFn: (noteId: string) =>
-      deleteProjectNote(projectId!, payRunId || '', noteId),
-    onSuccess: () => {
+      deleteProjectNote(projectId!, monthYear || '', noteId),
+    onSuccess: (_, noteId) => {
+      // Update the cache directly for immediate UI feedback
+      queryClient.setQueryData(
+        [QUERY_KEYS.projectNotes, projectId, monthYear],
+        (oldData: any) => {
+          if (!oldData) return oldData;
+          return {
+            ...oldData,
+            notes: oldData.notes.filter((note: Note) => note.id !== noteId)
+          };
+        }
+      );
+      
+      // Also invalidate the query to ensure data consistency
       queryClient.invalidateQueries({
-        queryKey: [QUERY_KEYS.projectNotes, projectId, payRunId]
+        queryKey: [QUERY_KEYS.projectNotes, projectId, monthYear]
       });
     }
   });
@@ -123,10 +161,23 @@ function useProcessingNotes({
   // Delete monthly note mutation
   const deleteMonthlyNoteMutation = useMutation({
     mutationFn: (noteId: string) =>
-      deletePayRunNote(payRunId!, noteId),
-    onSuccess: () => {
+      deletePayRunNote(monthYear!, noteId),
+    onSuccess: (_, noteId) => {
+      // Update the cache directly for immediate UI feedback
+      queryClient.setQueryData(
+        [QUERY_KEYS.payRunNotes, monthYear],
+        (oldData: any) => {
+          if (!oldData) return oldData;
+          return {
+            ...oldData,
+            notes: oldData.notes.filter((note: Note) => note.id !== noteId)
+          };
+        }
+      );
+      
+      // Also invalidate the query to ensure data consistency
       queryClient.invalidateQueries({
-        queryKey: [QUERY_KEYS.payRunNotes, payRunId]
+        queryKey: [QUERY_KEYS.payRunNotes, monthYear]
       });
     }
   });

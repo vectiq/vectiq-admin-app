@@ -15,9 +15,11 @@ import {
 import { ChevronDown, ChevronRight, Users, AlertCircle, StickyNote, MessageCircle, CircleDot, CircleDashed, CheckCircle2, FileText, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { NotesSlideout } from './NotesSlideout';
-import { useProcessingNotes } from '@/lib/hooks/useProcessingNotes';
+import { useProcessingNotes } from '@/lib/hooks/useProcessingNotes'; 
 import { useProcessing } from '@/lib/hooks/useProcessing';
-import type { ProcessingProject } from '@/types';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import type { ProcessingProject, SubmittedInvoice } from '@/types';
 
 interface ProjectNotesMap {
   [projectId: string]: number;
@@ -58,10 +60,14 @@ export function ProcessingTable({
   const [invoiceResponse, setInvoiceResponse] = useState<any | null>(null);
   const [projectNotesCounts, setProjectNotesCounts] = useState<ProjectNotesMap>({});
   const [generatingInvoiceId, setGeneratingInvoiceId] = useState<string | null>(null);
+  const [localNotesCounts, setLocalNotesCounts] = useState<ProjectNotesMap>({});
+  const [pdfDebugData, setPdfDebugData] = useState<string | null>(null);
   const [invoiceConfirmation, setInvoiceConfirmation] = useState<{ isOpen: boolean; project: ProcessingProject | null }>({
     isOpen: false,
     project: null
   });
+  const [submittedInvoices, setSubmittedInvoices] = useState<Record<string, boolean>>({});
+  const [localSubmittedInvoices, setLocalSubmittedInvoices] = useState<Record<string, boolean>>({});
   
   const { generateInvoice, isGeneratingInvoice } = useProcessing(new Date(month + '-01'));
 
@@ -75,7 +81,8 @@ export function ProcessingTable({
     isLoadingProjectNotes
   } = useProcessingNotes({
     projectId: selectedProject?.id,
-    month
+    month: month.split('-')[1], // Extract month (MM) from YYYY-MM
+    year: month.split('-')[0]   // Extract year (YYYY) from YYYY-MM
   });
 
   // Load note counts for all projects when component mounts or projects change
@@ -83,13 +90,42 @@ export function ProcessingTable({
     const loadNoteCounts = async () => {
       const counts: ProjectNotesMap = {};
       for (const project of projects) {
-        const notes = await getProjectNotes(project.id, month);
+        // Split month into year and month components
+        const [year, monthPart] = month.split('-');
+        const notes = await getProjectNotes(project.id, `${year}-${monthPart}`);
         counts[project.id] = notes?.notes?.length || 0;
       }
+      setLocalNotesCounts(counts);
       setProjectNotesCounts(counts);
     };
     loadNoteCounts();
   }, [projects, month, getProjectNotes]);
+
+  // Load submitted invoices for this month
+  useEffect(() => {
+    const loadSubmittedInvoices = async () => {
+      const [year, monthPart] = month.split('-');
+      const submittedInvoicesRef = collection(db, 'submittedInvoices');
+      const q = query(
+        submittedInvoicesRef,
+        where('month', '==', monthPart),
+        where('year', '==', year)
+      );
+      
+      const snapshot = await getDocs(q);
+      const submitted: Record<string, boolean> = {};
+      
+      snapshot.forEach(doc => {
+        const data = doc.data() as SubmittedInvoice;
+        submitted[data.projectId] = true;
+      });
+
+      setSubmittedInvoices(submitted);
+      setLocalSubmittedInvoices(submitted);
+    };
+    
+    loadSubmittedInvoices();
+  }, [month]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -156,6 +192,13 @@ export function ProcessingTable({
 
     try {
       const response = await generateInvoice(project);
+      
+      // Update local state immediately after successful invoice generation
+      setLocalSubmittedInvoices(prev => ({
+        ...prev,
+        [project.id]: true
+      }));
+      
       setInvoiceResponse(response);
       setInvoiceConfirmation({ isOpen: false, project: null });
     } catch (error) {
@@ -166,6 +209,28 @@ export function ProcessingTable({
     setInvoiceConfirmation({ isOpen: false, project: null });
   };
 
+  // Update local note counts when a note is deleted
+  const handleDeleteNote = async (noteId: string) => {
+    if (!selectedProject) return;
+
+    try {
+      await deleteProjectNote(noteId);
+
+      // Update local note count immediately
+      setLocalNotesCounts(prev => ({
+        ...prev,
+        [selectedProject.id]: Math.max(0, (prev[selectedProject.id] || 0) - 1)
+      }));
+      
+      // Also update the projectNotesCounts to ensure UI consistency
+      setProjectNotesCounts(prev => ({
+        ...prev,
+        [selectedProject.id]: Math.max(0, (prev[selectedProject.id] || 0) - 1)
+      }));
+    } catch (error) {
+      console.error('Failed to delete note:', error);
+    }
+  };
 
   return (
     <div className="overflow-x-auto">
@@ -236,15 +301,20 @@ export function ProcessingTable({
                         onClick={() => {
                           setSelectedProject(project);
                           setNotesOpen(true);
+                          // Reset local note count when opening notes panel
+                          setLocalNotesCounts(prev => ({
+                            ...prev,
+                            [project.id]: projectNotesCounts[project.id] || 0
+                          }));
                         }}
                       >
                         <StickyNote className="h-4 w-4" />
-                        {projectNotesCounts[project.id] > 0 && (
+                        {(projectNotesCounts[project.id] > 0 || localNotesCounts[project.id] > 0) && (
                           <Badge
                             variant="secondary"
                             className="absolute -top-1.5 -right-1.5 min-w-[1.25rem] h-5 flex items-center justify-center text-xs"
                           >
-                            {projectNotesCounts[project.id]}
+                            {Math.max(projectNotesCounts[project.id] || 0, localNotesCounts[project.id] || 0)}
                           </Badge>
                         )}
                       </Button>
@@ -261,13 +331,15 @@ export function ProcessingTable({
                       <Button
                         variant="secondary"
                         size="sm"
-                        disabled={(generatingInvoiceId === project.id) || !project.xeroContactId}
+                        disabled={(generatingInvoiceId === project.id) || !project.xeroContactId || submittedInvoices[project.id] || localSubmittedInvoices[project.id]}
                         title="Generate Xero Invoice"
                         onClick={() => handleGenerateInvoice(project)}
                         className="p-2"
                       >
                         {generatingInvoiceId === project.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : submittedInvoices[project.id] || localSubmittedInvoices[project.id] ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-500" />
                         ) : (
                           <FileText className="h-4 w-4" />
                         )}
@@ -342,7 +414,7 @@ export function ProcessingTable({
           notes={projectNotes}
           onAddNote={addProjectNote}
           onUpdateNote={updateProjectNote}
-          onDeleteNote={deleteProjectNote}
+          onDeleteNote={handleDeleteNote}
           isLoading={isLoadingProjectNotes}
         />
       )}

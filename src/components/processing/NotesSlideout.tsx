@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/Select';
 import { FormField } from '@/components/ui/FormField';
-import { StickyNote, Plus, Edit2, Trash2, X } from 'lucide-react';
-import { format } from 'date-fns';
+import { StickyNote, Plus, Edit2, Trash2, X, Loader2 } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 import { NoteCard } from '@/components/ui/NoteCard';
 import type { Note } from '@/types';
 
@@ -33,6 +33,7 @@ export function NotesSlideout({
   const [newNote, setNewNote] = useState('');
   const [newNotePriority, setNewNotePriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [isAddingNote, setIsAddingNote] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Sort notes by priority (high -> medium -> low) and then by creation date (newest first)
   const sortedNotes = [...notes].sort((a, b) => {
@@ -49,16 +50,25 @@ export function NotesSlideout({
   const handleAddNote = async () => {
     if (!newNote.trim()) return;
 
-    await onAddNote({
+    const noteData = {
       text: newNote.trim(),
       priority: newNotePriority,
       status: 'pending',
-      createdBy: 'Current User' // TODO: Get from auth context
-    });
+      createdBy: 'Current User'
+    };
 
-    setNewNote('');
-    setNewNotePriority('medium');
-    setIsAddingNote(false);
+    setIsSubmitting(true);
+    try {
+      await onAddNote(noteData);
+
+      setNewNote('');
+      setNewNotePriority('medium');
+      setIsAddingNote(false);
+    } catch (error) {
+      console.error('Failed to add note:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -112,7 +122,11 @@ export function NotesSlideout({
                 </FormField>
 
                 <Button onClick={handleAddNote} disabled={!newNote.trim()}>
-                  <Plus className="h-4 w-4 mr-2" />
+                  {isSubmitting ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4 mr-2" />
+                  )}
                   Add Note
                 </Button>
               </div>

@@ -1,10 +1,10 @@
 import { collection, getDocs, query, where, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/lib/firebase';
-import { format, eachDayOfInterval, parseISO, startOfMonth, endOfMonth } from 'date-fns';
+import { format, eachDayOfInterval, parseISO, startOfMonth, endOfMonth, getMonth, getYear } from 'date-fns';
 import { getWorkingDaysForMonth } from '@/lib/utils/workingDays';
 import type {
-  ProcessingData, ProcessingProject, TimeEntry, Approval, XeroInvoiceResponse, ProjectTask
+  ProcessingData, ProcessingProject, TimeEntry, Approval, XeroInvoiceResponse, ProjectTask, SubmittedInvoice
 } from '@/types';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -197,6 +197,27 @@ async function generateTimesheetPDF(project: ProcessingProject, month: string): 
  * This is the main function that should be called to create invoices.
  */
 export async function generateInvoice(project: ProcessingProject): Promise<XeroInvoiceResponse> {
+  // Check if invoice has already been submitted for this project and month
+  const currentDate = new Date();
+  const month = format(currentDate, 'MM');
+  const year = format(currentDate, 'yyyy');
+  
+  // Check if this invoice has already been submitted
+  const submittedInvoicesRef = collection(db, 'submittedInvoices');
+  const q = query(
+    submittedInvoicesRef,
+    where('projectId', '==', project.id),
+    where('month', '==', month),
+    where('year', '==', year)
+  );
+  
+  const submittedSnapshot = await getDocs(q);
+  if (!submittedSnapshot.empty) {
+    // Invoice already exists, return the stored data
+    const submittedInvoice = submittedSnapshot.docs[0].data() as SubmittedInvoice;
+    return submittedInvoice.invoiceData;
+  }
+
   try {
     const createXeroInvoice = httpsCallable<{ invoiceData: XeroInvoice }, XeroInvoiceResponse>(
       functions,
@@ -223,9 +244,24 @@ export async function generateInvoice(project: ProcessingProject): Promise<XeroI
       attachmentName: `${project.name}-timesheet-${format(new Date(), 'yyyy-MM')}.pdf`
     });
 
+    // Store the invoice response in Firestore to prevent resubmission
+    const submittedInvoiceRef = doc(collection(db, 'submittedInvoices'));
+    await setDoc(submittedInvoiceRef, {
+      id: submittedInvoiceRef.id, 
+      projectId: project.id,
+      month,
+      year,
+      invoiceData: response,
+      createdAt: serverTimestamp()
+    });
+    
+    // Update the submittedInvoices state in the component
+    console.log("Invoice successfully submitted and stored:", project.id);
+
     // Return both the invoice response and the PDF data for debugging
     return {
       ...response,
+      projectId: project.id // Include projectId in the response for easier tracking
     };
   } catch (error) {
     console.error('Error creating Xero invoice:', error);

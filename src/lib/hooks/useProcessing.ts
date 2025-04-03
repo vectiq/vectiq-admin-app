@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { getProcessingData, updateProjectStatus, generateInvoice } from '@/lib/services/processing';
+import type { ProcessingProject } from '@/types';
 
 const QUERY_KEY = 'processing';
 
@@ -17,9 +18,22 @@ export function useProcessing(selectedDate: Date) {
   // Mutation for generating invoice
   const invoiceMutation = useMutation({
     mutationFn: generateInvoice,
-    onSuccess: () => {
+    onSuccess: (response, project) => {
       // Optionally invalidate queries if needed
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, month] });
+      
+      // Update the submittedInvoices cache to immediately reflect the change
+      queryClient.setQueryData([QUERY_KEY, month], (oldData: any) => {
+        if (!oldData) return oldData;
+        
+        // Create a new submittedInvoices object with the newly submitted invoice
+        const submittedInvoices = { ...oldData.submittedInvoices, [project.id]: true };
+        
+        return {
+          ...oldData,
+          submittedInvoices
+        };
+      });
     }
   });
 

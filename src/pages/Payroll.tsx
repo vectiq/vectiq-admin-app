@@ -52,7 +52,10 @@ export default function Payroll() {
     updateMonthlyNote,
     deleteMonthlyNote,
     isLoadingMonthlyNotes
-  } = useProcessingNotes({ payRunId: selectedPayRun?.PayRunID });
+  } = useProcessingNotes({ 
+    month: selectedPayRun ? format(new Date(selectedPayRun.PayRunPeriodStartDate), 'MM') : undefined,
+    year: selectedPayRun ? format(new Date(selectedPayRun.PayRunPeriodStartDate), 'yyyy') : undefined
+  });
 
   if (isLoading) {
     return <LoadingScreen />;
