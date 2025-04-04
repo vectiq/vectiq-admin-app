@@ -7,8 +7,8 @@ import { getWorkingDaysForMonth } from '@/lib/utils/workingDays';
 import type {
   ProcessingData, ProcessingProject, TimeEntry, Approval, XeroInvoiceResponse, ProjectTask, SubmittedInvoice
 } from '@/types';
-import { jsPDF } from 'jspdf';
-import { autoTable } from 'jspdf-autotable';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 async function getProjectTimeEntries(projectId: string, month: string): Promise<TimeEntry[]> {
   const startDate = `${month}-01`;
